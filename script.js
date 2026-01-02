@@ -24,26 +24,46 @@ class Troop {
     this.damage = damage;
     this.range = range;
     this.cooldown = 0;
+    this.attacking = false;
   }
 
-  update(enemies) {
+  update(enemies, towers) {
+    // Find nearest tower in range
+    let nearestTower = towers
+      .filter(t => t.team !== this.team)
+      .sort((a,b) => Math.abs(a.x - this.x))[0];
+
+    // Find nearest enemy troop in range
     const target = enemies.find(e => Math.abs(e.x - this.x) < this.range);
-    if (target) {
-      if (this.cooldown <= 0) {
-        target.hp -= this.damage;
-        floatingTexts.push(new FloatingText(target.x, target.y - 20, `-${this.damage}`));
-        this.cooldown = 60;
-      }
+
+    if (target && Math.abs(target.x - this.x) < this.range + 10) {
+      this.attack(target);
+    } else if (nearestTower && Math.abs(nearestTower.x - this.x) < this.range + 10) {
+      this.attack(nearestTower);
     } else {
       this.x += this.speed;
+      this.attacking = false;
     }
+
     if (this.cooldown > 0) this.cooldown--;
+  }
+
+  attack(target) {
+    this.attacking = true;
+    if (this.cooldown <= 0) {
+      target.hp -= this.damage;
+      floatingTexts.push(new FloatingText(target.x, target.y - 20, `-${this.damage}`));
+      this.cooldown = 60;
+    }
   }
 
   draw() {
     ctx.font = "24px serif";
-    ctx.fillText(this.emoji, this.x - 12, this.y + 12);
+    // Attack animation: shake troop slightly when attacking
+    const offset = this.attacking ? Math.random()*4-2 : 0;
+    ctx.fillText(this.emoji, this.x - 12 + offset, this.y + 12 + offset);
 
+    // Health bar
     ctx.fillStyle = this.team === "player" ? "#b14cff" : "#ff3333";
     ctx.fillRect(this.x - 12, this.y - 18, (this.hp / this.maxHp) * 24, 4);
   }
@@ -130,11 +150,17 @@ class FloatingText {
 }
 
 // ================= TOWERS =================
+// Three towers per side (left: player, right: enemy)
 const towers = [
-  new Tower(40, 150, "player", "🏰", 500),
-  new Tower(40, 300, "player", "👑", 800),
-  new Tower(860, 150, "enemy", "🏰", 500),
-  new Tower(860, 300, "enemy", "👑", 800)
+  // Player: left
+  new Tower(40, 100, "player", "🏰", 500),
+  new Tower(40, 300, "player", "🏰", 500),
+  new Tower(140, 200, "player", "👑", 800),
+
+  // Enemy: right
+  new Tower(860, 100, "enemy", "🏰", 500),
+  new Tower(860, 300, "enemy", "🏰", 500),
+  new Tower(760, 200, "enemy", "👑", 800)
 ];
 
 // ================= CARDS =================
@@ -214,26 +240,26 @@ function drawArena() {
 function gameLoop() {
   drawArena();
 
+  // Update towers
   towers.forEach(t => {
     t.draw();
-    t.update(
-      t.team === "player"
-        ? troops.filter(e => e.team === "enemy")
-        : troops.filter(e => e.team === "player")
-    );
+    t.update(troops.filter(tr => tr.team !== t.team));
   });
 
-  troops.forEach(t => {
-    t.update(
-      t.team === "player"
-        ? troops.filter(e => e.team === "enemy")
-        : troops.filter(e => e.team === "player")
-    );
-    t.draw();
-  });
+  // Update troops
+  troops.forEach(t => t.update(
+    troops.filter(tr => tr.team !== t.team),
+    towers
+  ));
 
+  // Draw troops
+  troops.forEach(t => t.draw());
+
+  // Update arrows
   arrows.forEach(a => { a.update(); a.draw(); });
   arrows = arrows.filter(a => !a.hit);
+
+  // Remove dead troops
   troops = troops.filter(t => t.hp > 0);
 
   // Floating damage texts
