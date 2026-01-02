@@ -4,13 +4,11 @@ const ctx = canvas.getContext("2d");
 let elixir = 10;
 let troops = [];
 let arrows = [];
+let floatingTexts = [];
 
-// Drag state
 let draggingCard = null;
 let pointerX = 0;
 let pointerY = 0;
-
-// Selected card for click-to-place
 let selectedCard = null;
 
 // ================= TROOP =================
@@ -29,11 +27,11 @@ class Troop {
   }
 
   update(enemies) {
-    // Find closest enemy
     const target = enemies.find(e => Math.abs(e.x - this.x) < this.range);
     if (target) {
       if (this.cooldown <= 0) {
         target.hp -= this.damage;
+        floatingTexts.push(new FloatingText(target.x, target.y - 20, `-${this.damage}`));
         this.cooldown = 60;
       }
     } else {
@@ -46,7 +44,6 @@ class Troop {
     ctx.font = "24px serif";
     ctx.fillText(this.emoji, this.x - 12, this.y + 12);
 
-    // Health bar: purple for player, red for enemy
     ctx.fillStyle = this.team === "player" ? "#b14cff" : "#ff3333";
     ctx.fillRect(this.x - 12, this.y - 18, (this.hp / this.maxHp) * 24, 4);
   }
@@ -66,13 +63,11 @@ class Tower {
   }
 
   update(targets) {
-    if (this.cooldown > 0) {
-      this.cooldown--;
-      return;
-    }
+    if (this.cooldown > 0) { this.cooldown--; return; }
     const target = targets.find(t => Math.abs(t.x - this.x) < this.range);
     if (target) {
-      arrows.push(new Arrow(this.x, this.y, target));
+      target.hp -= 20;
+      floatingTexts.push(new FloatingText(target.x, target.y - 20, "-20"));
       this.cooldown = 50;
     }
   }
@@ -81,7 +76,6 @@ class Tower {
     ctx.font = "40px serif";
     ctx.fillText(this.emoji, this.x - 20, this.y + 40);
 
-    // Health bar
     ctx.fillStyle = this.team === "player" ? "#b14cff" : "#ff3333";
     ctx.fillRect(this.x - 20, this.y - 10, (this.hp / this.maxHp) * 40, 6);
   }
@@ -99,9 +93,9 @@ class Arrow {
   update() {
     this.x += (this.target.x - this.x) * 0.15;
     this.y += (this.target.y - this.y) * 0.15;
-
     if (Math.abs(this.x - this.target.x) < 6) {
       this.target.hp -= 20;
+      floatingTexts.push(new FloatingText(this.target.x, this.target.y - 20, "-20"));
       this.hit = true;
     }
   }
@@ -109,6 +103,29 @@ class Arrow {
   draw() {
     ctx.font = "16px serif";
     ctx.fillText("🏹", this.x, this.y);
+  }
+}
+
+// ================= FLOATING DAMAGE TEXT =================
+class FloatingText {
+  constructor(x, y, text) {
+    this.x = x;
+    this.y = y;
+    this.text = text;
+    this.alpha = 1;
+  }
+
+  update() {
+    this.y -= 0.5;
+    this.alpha -= 0.02;
+  }
+
+  draw() {
+    ctx.globalAlpha = this.alpha;
+    ctx.fillStyle = "#ffd700";
+    ctx.font = "18px serif";
+    ctx.fillText(this.text, this.x, this.y);
+    ctx.globalAlpha = 1;
   }
 }
 
@@ -134,14 +151,12 @@ const cardConfig = {
 document.querySelectorAll("#cards button").forEach(btn => {
   const type = btn.dataset.type;
 
-  // Click to select card
   btn.addEventListener("click", () => {
     selectedCard = { type: type, cost: cardConfig[type].cost };
     document.querySelectorAll("#cards button").forEach(b => b.classList.remove("selected"));
     btn.classList.add("selected");
   });
 
-  // Drag card
   btn.addEventListener("pointerdown", e => {
     e.preventDefault();
     draggingCard = { type: type, cost: cardConfig[type].cost };
@@ -182,7 +197,7 @@ function placeCard(clientX, clientY) {
 // ================= ENEMY AI =================
 setInterval(() => {
   const x = 820;
-  const y = Math.random() * 400 + 100; // random Y
+  const y = Math.random() * 400 + 50;
   const keys = Object.keys(cardConfig);
   const type = keys[Math.floor(Math.random() * keys.length)];
   const cfg = cardConfig[type];
@@ -217,12 +232,13 @@ function gameLoop() {
     t.draw();
   });
 
-  arrows.forEach(a => {
-    a.update();
-    a.draw();
-  });
+  arrows.forEach(a => { a.update(); a.draw(); });
   arrows = arrows.filter(a => !a.hit);
   troops = troops.filter(t => t.hp > 0);
+
+  // Floating damage texts
+  floatingTexts.forEach(ft => { ft.update(); ft.draw(); });
+  floatingTexts = floatingTexts.filter(ft => ft.alpha > 0);
 
   // Ghost for dragging
   if (draggingCard) {
@@ -237,8 +253,5 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
-setInterval(() => {
-  if (elixir < 10) elixir++;
-}, 1000);
-
+setInterval(() => { if (elixir < 10) elixir++; }, 1000);
 gameLoop();
