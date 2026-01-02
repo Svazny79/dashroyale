@@ -1,29 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Dash Royale</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="style.css">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Emoji Royale</title>
+<style>
+  body { margin:0; font-family: sans-serif; background:#222; color:#fff; }
+  #cards { display:flex; gap:10px; padding:10px; }
+  #cards button {
+    padding:10px;
+    font-size:24px;
+    cursor:pointer;
+    border-radius:8px;
+    border:none;
+    background:#444;
+    color:#fff;
+    min-width:60px;
+  }
+  #cards button.selected { border:2px solid #ffd700; }
+  #elixir { padding:10px; font-size:18px; }
+</style>
 </head>
 <body>
 
-<h1 class="title">⚔️ Dash Royale ⚔️</h1>
-
-<div id="ui">
-  <div id="elixir">Elixir: 10</div>
-
-  <div id="cards">
-    <button data-type="knight" data-cost="3">Knight (3)</button>
-    <button data-type="archer" data-cost="3">Archer (3)</button>
-    <button data-type="giant" data-cost="5">Giant (5)</button>
-    <button data-type="pekka" data-cost="4">Mini Pekka (4)</button>
-  </div>
+<div id="elixir">Elixir: 10</div>
+<div id="cards">
+  <button data-type="knight">🗡️ Knight</button>
+  <button data-type="archer">🏹 Archer</button>
+  <button data-type="giant">🗿 Giant</button>
+  <button data-type="pekka">🤖 Pekka</button>
+  <button data-type="wizard">🪄 Wizard</button>
+  <button data-type="goblin">👺 Goblin</button>
 </div>
-
-<canvas id="game" width="900" height="500"></canvas>
-
-<p class="hint">Drag a card onto your side of the arena</p>
+<canvas id="game" width="900" height="500" style="display:block;margin:0 auto;background:#2e7c31;"></canvas>
 
 <script src="script.js"></script>
 </body>
