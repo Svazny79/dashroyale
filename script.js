@@ -1,15 +1,56 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
+// ================= GAME STATE =================
 let elixir = 10;
 let troops = [];
 let arrows = [];
 let floatingTexts = [];
+let gameStarted = false;
+let timeRemaining = 0; // seconds
 
 let draggingCard = null;
 let pointerX = 0;
 let pointerY = 0;
 let selectedCard = null;
+
+// ================= TIMER =================
+const timerDisplay = document.getElementById("timer");
+const timerButtons = document.querySelectorAll("#timer-options button");
+
+timerButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    timeRemaining = parseInt(btn.dataset.time);
+    gameStarted = true;
+    document.getElementById("timer-options").style.display = "none";
+    updateTimerDisplay();
+    startGameTimer();
+  });
+});
+
+function updateTimerDisplay() {
+  if (!gameStarted) {
+    timerDisplay.innerText = "Set Time";
+    return;
+  }
+  const minutes = Math.floor(timeRemaining / 60);
+  const seconds = timeRemaining % 60;
+  timerDisplay.innerText = `Time: ${minutes}:${seconds.toString().padStart(2,"0")}`;
+}
+
+function startGameTimer() {
+  const timerInterval = setInterval(() => {
+    if (!gameStarted) return;
+    if (timeRemaining <= 0) {
+      clearInterval(timerInterval);
+      gameStarted = false;
+      timerDisplay.innerText = "Game Over";
+      return;
+    }
+    timeRemaining--;
+    updateTimerDisplay();
+  }, 1000);
+}
 
 // ================= TROOP =================
 class Troop {
@@ -28,13 +69,15 @@ class Troop {
   }
 
   update(enemies, towers) {
-    // Find nearest tower in range
+    if (!gameStarted) return;
+
+    // Nearest enemy troop
+    const target = enemies.find(e => Math.abs(e.x - this.x) < this.range);
+
+    // Nearest enemy tower
     let nearestTower = towers
       .filter(t => t.team !== this.team)
       .sort((a,b) => Math.abs(a.x - this.x))[0];
-
-    // Find nearest enemy troop in range
-    const target = enemies.find(e => Math.abs(e.x - this.x) < this.range);
 
     if (target && Math.abs(target.x - this.x) < this.range + 10) {
       this.attack(target);
@@ -59,11 +102,9 @@ class Troop {
 
   draw() {
     ctx.font = "24px serif";
-    // Attack animation: shake troop slightly when attacking
     const offset = this.attacking ? Math.random()*4-2 : 0;
     ctx.fillText(this.emoji, this.x - 12 + offset, this.y + 12 + offset);
 
-    // Health bar
     ctx.fillStyle = this.team === "player" ? "#b14cff" : "#ff3333";
     ctx.fillRect(this.x - 12, this.y - 18, (this.hp / this.maxHp) * 24, 4);
   }
@@ -83,6 +124,7 @@ class Tower {
   }
 
   update(targets) {
+    if (!gameStarted) return;
     if (this.cooldown > 0) { this.cooldown--; return; }
     const target = targets.find(t => Math.abs(t.x - this.x) < this.range);
     if (target) {
@@ -98,31 +140,6 @@ class Tower {
 
     ctx.fillStyle = this.team === "player" ? "#b14cff" : "#ff3333";
     ctx.fillRect(this.x - 20, this.y - 10, (this.hp / this.maxHp) * 40, 6);
-  }
-}
-
-// ================= PROJECTILE =================
-class Arrow {
-  constructor(x, y, target) {
-    this.x = x;
-    this.y = y;
-    this.target = target;
-    this.hit = false;
-  }
-
-  update() {
-    this.x += (this.target.x - this.x) * 0.15;
-    this.y += (this.target.y - this.y) * 0.15;
-    if (Math.abs(this.x - this.target.x) < 6) {
-      this.target.hp -= 20;
-      floatingTexts.push(new FloatingText(this.target.x, this.target.y - 20, "-20"));
-      this.hit = true;
-    }
-  }
-
-  draw() {
-    ctx.font = "16px serif";
-    ctx.fillText("🏹", this.x, this.y);
   }
 }
 
@@ -150,7 +167,6 @@ class FloatingText {
 }
 
 // ================= TOWERS =================
-// Three towers per side (left: player, right: enemy)
 const towers = [
   // Player: left
   new Tower(40, 100, "player", "🏰", 500),
@@ -203,6 +219,8 @@ document.addEventListener("pointerup", e => {
 });
 
 function placeCard(clientX, clientY) {
+  if (!gameStarted) return;
+
   const rect = canvas.getBoundingClientRect();
   const x = clientX - rect.left;
   const y = clientY - rect.top;
@@ -222,6 +240,7 @@ function placeCard(clientX, clientY) {
 
 // ================= ENEMY AI =================
 setInterval(() => {
+  if (!gameStarted) return;
   const x = 820;
   const y = Math.random() * 400 + 50;
   const keys = Object.keys(cardConfig);
@@ -255,13 +274,6 @@ function gameLoop() {
   // Draw troops
   troops.forEach(t => t.draw());
 
-  // Update arrows
-  arrows.forEach(a => { a.update(); a.draw(); });
-  arrows = arrows.filter(a => !a.hit);
-
-  // Remove dead troops
-  troops = troops.filter(t => t.hp > 0);
-
   // Floating damage texts
   floatingTexts.forEach(ft => { ft.update(); ft.draw(); });
   floatingTexts = floatingTexts.filter(ft => ft.alpha > 0);
@@ -279,5 +291,6 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
-setInterval(() => { if (elixir < 10) elixir++; }, 1000);
+setInterval(() => { if (elixir < 10 && gameStarted) elixir++; }, 1000);
+
 gameLoop();
