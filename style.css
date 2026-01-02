@@ -1,0 +1,28 @@
+body {
+  background: #1e1e2f;
+  color: white;
+  font-family: Arial;
+  text-align: center;
+}
+
+#game {
+  border: 3px solid #444;
+  background: linear-gradient(#3a7bd5, #3a6073);
+  display: block;
+  margin: auto;
+}
+
+#ui {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 10px;
+}
+
+button {
+  padding: 10px;
+  background: gold;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+}
