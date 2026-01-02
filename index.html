@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Emoji Royale</title>
+<title>Dash Royale</title>
 <style>
-  body { margin:0; font-family: sans-serif; background:#222; color:#fff; }
-  #cards { display:flex; gap:10px; padding:10px; }
+  body { margin:0; font-family: sans-serif; background:#222; color:#fff; text-align:center; }
+  #cards { display:flex; gap:10px; padding:10px; justify-content:center; }
   #cards button {
+    position: relative;
     padding:10px;
     font-size:24px;
     cursor:pointer;
@@ -15,23 +16,62 @@
     border:none;
     background:#444;
     color:#fff;
-    min-width:60px;
+    min-width:70px;
+    height:70px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction: column;
   }
   #cards button.selected { border:2px solid #ffd700; }
-  #elixir { padding:10px; font-size:18px; }
+  #cards button span.cost {
+    position:absolute;
+    top:2px;
+    left:2px;
+    background:#005aff;
+    border-radius:50%;
+    width:22px;
+    height:22px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:14px;
+    font-weight:bold;
+  }
+  #elixir, #timer { padding:10px; font-size:18px; }
+  #timer-options button {
+    padding:5px 10px;
+    margin:5px;
+    font-size:16px;
+    cursor:pointer;
+    border-radius:5px;
+    border:none;
+    background:#555;
+    color:#fff;
+  }
+  #timer-options { margin-bottom:10px; }
 </style>
 </head>
 <body>
 
-<div id="elixir">Elixir: 10</div>
-<div id="cards">
-  <button data-type="knight">🗡️ Knight</button>
-  <button data-type="archer">🏹 Archer</button>
-  <button data-type="giant">🗿 Giant</button>
-  <button data-type="pekka">🤖 Pekka</button>
-  <button data-type="wizard">🪄 Wizard</button>
-  <button data-type="goblin">👺 Goblin</button>
+<div id="timer">Set Time</div>
+<div id="timer-options">
+  <button data-time="120">2 min</button>
+  <button data-time="300">5 min</button>
+  <button data-time="600">10 min</button>
 </div>
+
+<div id="elixir">Elixir: 10</div>
+
+<div id="cards">
+  <button data-type="knight"><span class="cost">3</span>🗡️</button>
+  <button data-type="archer"><span class="cost">2</span>🏹</button>
+  <button data-type="giant"><span class="cost">5</span>🗿</button>
+  <button data-type="pekka"><span class="cost">5</span>🤖</button>
+  <button data-type="wizard"><span class="cost">4</span>🪄</button>
+  <button data-type="goblin"><span class="cost">2</span>👺</button>
+</div>
+
 <canvas id="game" width="900" height="500" style="display:block;margin:0 auto;background:#2e7c31;"></canvas>
 
 <script src="script.js"></script>
