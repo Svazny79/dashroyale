@@ -5,10 +5,10 @@ let elixir = 10;
 let troops = [];
 let arrows = [];
 
-// DRAG STATE
+// ===== DRAG STATE =====
 let draggingCard = null;
-let mouseX = 0;
-let mouseY = 0;
+let pointerX = 0;
+let pointerY = 0;
 
 // ================= TROOP =================
 class Troop {
@@ -115,49 +115,46 @@ const towers = [
   new Tower(740, "enemy", 800)
 ];
 
-// ================= CARD DRAGGING =================
+// ================= POINTER EVENTS (FIX) =================
 document.querySelectorAll("#cards button").forEach(btn => {
-  btn.addEventListener("mousedown", e => {
+  btn.addEventListener("pointerdown", e => {
+    e.preventDefault(); // CRITICAL
     draggingCard = {
       type: btn.dataset.type,
       cost: Number(btn.dataset.cost)
     };
-    btn.classList.add("dragging");
-  });
-
-  btn.addEventListener("mouseup", () => {
-    btn.classList.remove("dragging");
   });
 });
 
-// Track mouse movement
-document.addEventListener("mousemove", e => {
+document.addEventListener("pointermove", e => {
   const rect = canvas.getBoundingClientRect();
-  mouseX = e.clientX - rect.left;
-  mouseY = e.clientY - rect.top;
+  pointerX = e.clientX - rect.left;
+  pointerY = e.clientY - rect.top;
 });
 
-// Drop card
-canvas.addEventListener("mouseup", () => {
+document.addEventListener("pointerup", e => {
   if (!draggingCard) return;
-  if (elixir < draggingCard.cost) {
-    draggingCard = null;
-    return;
+
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  // Must drop ON canvas
+  if (
+    x >= 0 && x <= canvas.width &&
+    y >= 0 && y <= canvas.height &&
+    x <= canvas.width / 2 &&
+    elixir >= draggingCard.cost
+  ) {
+    elixir -= draggingCard.cost;
+
+    let hp = 150, speed = 1, dmg = 15, range = 30;
+    if (draggingCard.type === "giant") { hp = 350; speed = 0.5; dmg = 25; }
+    if (draggingCard.type === "pekka") { hp = 250; dmg = 35; }
+
+    troops.push(new Troop(x, y, "player", hp, speed, dmg, range));
   }
 
-  // Player side only
-  if (mouseX > canvas.width / 2) {
-    draggingCard = null;
-    return;
-  }
-
-  elixir -= draggingCard.cost;
-
-  let hp = 150, speed = 1, dmg = 15, range = 30;
-  if (draggingCard.type === "giant") { hp = 350; speed = 0.5; dmg = 25; }
-  if (draggingCard.type === "pekka") { hp = 250; dmg = 35; }
-
-  troops.push(new Troop(mouseX, mouseY, "player", hp, speed, dmg, range));
   draggingCard = null;
 });
 
@@ -196,11 +193,11 @@ function gameLoop() {
   arrows = arrows.filter(a => !a.hit);
   troops = troops.filter(t => t.hp > 0);
 
-  // GHOST CARD FOLLOWING CURSOR
+  // GHOST TROOP
   if (draggingCard) {
     ctx.globalAlpha = 0.6;
     ctx.fillStyle = "gold";
-    ctx.fillRect(mouseX - 11, mouseY - 11, 22, 22);
+    ctx.fillRect(pointerX - 11, pointerY - 11, 22, 22);
     ctx.globalAlpha = 1;
   }
 
