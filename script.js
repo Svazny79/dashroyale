@@ -4,6 +4,13 @@ const ctx = canvas.getContext("2d");
 let elixir = 10;
 let troops = [];
 let arrows = [];
+
+// DRAG / POINTER STATE
+let draggingCard = null;
+let pointerX = 0;
+let pointerY = 0;
+
+// SELECTED CARD FOR CLICK-TO-PLACE
 let selectedCard = null;
 
 // ================= TROOP =================
@@ -23,7 +30,6 @@ class Troop {
 
   update(enemies) {
     const target = enemies.find(e => Math.abs(e.x - this.x) < this.range);
-
     if (target) {
       if (this.cooldown <= 0) {
         target.hp -= this.damage;
@@ -32,7 +38,6 @@ class Troop {
     } else {
       this.x += this.speed;
     }
-
     if (this.cooldown > 0) this.cooldown--;
   }
 
@@ -127,63 +132,74 @@ const towers = [
 
 // ================= CARD CLICK =================
 document.querySelectorAll("#cards button").forEach(btn => {
+  // CLICK-TO-PLACE
   btn.addEventListener("click", () => {
     selectedCard = {
       type: btn.dataset.type,
       cost: Number(btn.dataset.cost)
     };
-
-    document
-      .querySelectorAll("#cards button")
-      .forEach(b => b.classList.remove("selected"));
+    // Highlight
+    document.querySelectorAll("#cards button").forEach(b => b.classList.remove("selected"));
     btn.classList.add("selected");
+  });
+
+  // DRAG
+  btn.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    draggingCard = {
+      type: btn.dataset.type,
+      cost: Number(btn.dataset.cost)
+    };
   });
 });
 
-// ================= PLACE TROOP =================
-canvas.addEventListener("click", e => {
-  if (!selectedCard || elixir < selectedCard.cost) return;
-
+// ================= POINTER MOVE =================
+document.addEventListener("pointermove", e => {
   const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
+  pointerX = e.clientX - rect.left;
+  pointerY = e.clientY - rect.top;
+});
 
-  // Player side only
+// ================= DROP / CLICK PLACE =================
+canvas.addEventListener("click", e => {
+  placeCard(e.clientX, e.clientY);
+});
+
+document.addEventListener("pointerup", e => {
+  // Drop after drag
+  if (draggingCard) placeCard(e.clientX, e.clientY);
+  draggingCard = null;
+});
+
+function placeCard(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const x = clientX - rect.left;
+  const y = clientY - rect.top;
+
+  // Only player side
   if (x > canvas.width / 2) return;
 
-  elixir -= selectedCard.cost;
+  let card = draggingCard || selectedCard;
+  if (!card || elixir < card.cost) return;
+
+  elixir -= card.cost;
 
   let config = {
     knight: { emoji: "🗡️", hp: 180, speed: 1, dmg: 15 },
     archer: { emoji: "🏹", hp: 120, speed: 1.1, dmg: 12 },
     giant: { emoji: "🗿", hp: 350, speed: 0.5, dmg: 25 },
     pekka: { emoji: "🤖", hp: 250, speed: 0.8, dmg: 35 }
-  }[selectedCard.type];
+  }[card.type];
 
-  troops.push(
-    new Troop(
-      x,
-      y,
-      "player",
-      config.emoji,
-      config.hp,
-      config.speed,
-      config.dmg,
-      30
-    )
-  );
+  troops.push(new Troop(x, y, "player", config.emoji, config.hp, config.speed, config.dmg, 30));
 
   selectedCard = null;
-  document
-    .querySelectorAll("#cards button")
-    .forEach(b => b.classList.remove("selected"));
-});
+  document.querySelectorAll("#cards button").forEach(b => b.classList.remove("selected"));
+}
 
 // ================= ENEMY AI =================
 setInterval(() => {
-  troops.push(
-    new Troop(820, 260, "enemy", "👾", 160, -1, 14, 30)
-  );
+  troops.push(new Troop(820, 260, "enemy", "👾", 160, -1, 14, 30));
 }, 3000);
 
 // ================= GAME LOOP =================
@@ -215,6 +231,20 @@ function gameLoop() {
 
   arrows = arrows.filter(a => !a.hit);
   troops = troops.filter(t => t.hp > 0);
+
+  // Ghost for dragging
+  if (draggingCard) {
+    ctx.globalAlpha = 0.6;
+    let emoji = {
+      knight: "🗡️",
+      archer: "🏹",
+      giant: "🗿",
+      pekka: "🤖"
+    }[draggingCard.type];
+    ctx.font = "24px serif";
+    ctx.fillText(emoji, pointerX - 10, pointerY + 10);
+    ctx.globalAlpha = 1;
+  }
 
   document.getElementById("elixir").innerText = "Elixir: " + elixir;
 
