@@ -4,20 +4,20 @@ const ctx = canvas.getContext("2d");
 let elixir = 10;
 let troops = [];
 let arrows = [];
-
-// DRAG / POINTER STATE
 let draggingCard = null;
 let pointerX = 0;
 let pointerY = 0;
-
-// SELECTED CARD FOR CLICK-TO-PLACE
 let selectedCard = null;
+
+// LANE Y POSITIONS
+const lanes = [120, 250, 380]; // top, middle, bottom
 
 // ================= TROOP =================
 class Troop {
-  constructor(x, y, team, emoji, hp, speed, damage, range) {
+  constructor(x, lane, team, emoji, hp, speed, damage, range) {
     this.x = x;
-    this.y = y;
+    this.y = lanes[lane];
+    this.lane = lane;
     this.team = team;
     this.emoji = emoji;
     this.hp = hp;
@@ -29,7 +29,7 @@ class Troop {
   }
 
   update(enemies) {
-    const target = enemies.find(e => Math.abs(e.x - this.x) < this.range);
+    const target = enemies.find(e => Math.abs(e.x - this.x) < this.range && e.lane === this.lane);
     if (target) {
       if (this.cooldown <= 0) {
         target.hp -= this.damage;
@@ -45,7 +45,7 @@ class Troop {
     ctx.font = "24px serif";
     ctx.fillText(this.emoji, this.x - 10, this.y + 10);
 
-    // PURPLE HEALTH BAR
+    // Purple health bar
     ctx.fillStyle = "#b14cff";
     ctx.fillRect(
       this.x - 12,
@@ -58,9 +58,10 @@ class Troop {
 
 // ================= TOWER =================
 class Tower {
-  constructor(x, team, emoji, hp) {
+  constructor(x, lane, team, emoji, hp) {
     this.x = x;
-    this.y = 200;
+    this.lane = lane;
+    this.y = lanes[lane];
     this.team = team;
     this.emoji = emoji;
     this.hp = hp;
@@ -74,26 +75,20 @@ class Tower {
       this.cooldown--;
       return;
     }
-
-    const target = targets.find(t => Math.abs(t.x - this.x) < this.range);
+    const target = targets.find(t => Math.abs(t.x - this.x) < this.range && t.lane === this.lane);
     if (target) {
-      arrows.push(new Arrow(this.x, this.y + 10, target));
+      arrows.push(new Arrow(this.x, this.y, target));
       this.cooldown = 50;
     }
   }
 
   draw() {
     ctx.font = "40px serif";
-    ctx.fillText(this.emoji, this.x - 20, this.y + 40);
+    ctx.fillText(this.emoji, this.x - 20, this.y + 20);
 
-    // PURPLE HEALTH BAR
+    // Purple health bar
     ctx.fillStyle = "#b14cff";
-    ctx.fillRect(
-      this.x - 20,
-      this.y - 10,
-      (this.hp / this.maxHp) * 40,
-      6
-    );
+    ctx.fillRect(this.x - 20, this.y - 10, (this.hp / this.maxHp) * 40, 6);
   }
 }
 
@@ -124,49 +119,36 @@ class Arrow {
 
 // ================= TOWERS =================
 const towers = [
-  new Tower(40, "player", "🏰", 500),
-  new Tower(120, "player", "👑", 800),
-  new Tower(860, "enemy", "🏰", 500),
-  new Tower(780, "enemy", "👑", 800)
+  new Tower(40, 0, "player", "🏰", 500),
+  new Tower(40, 2, "player", "🏰", 500),
+  new Tower(120, 1, "player", "👑", 800),
+  new Tower(860, 0, "enemy", "🏰", 500),
+  new Tower(860, 2, "enemy", "🏰", 500),
+  new Tower(780, 1, "enemy", "👑", 800)
 ];
 
-// ================= CARD CLICK =================
+// ================= CARD CLICK / DRAG =================
 document.querySelectorAll("#cards button").forEach(btn => {
-  // CLICK-TO-PLACE
   btn.addEventListener("click", () => {
-    selectedCard = {
-      type: btn.dataset.type,
-      cost: Number(btn.dataset.cost)
-    };
-    // Highlight
+    selectedCard = { type: btn.dataset.type, cost: Number(btn.dataset.cost) };
     document.querySelectorAll("#cards button").forEach(b => b.classList.remove("selected"));
     btn.classList.add("selected");
   });
 
-  // DRAG
   btn.addEventListener("pointerdown", e => {
     e.preventDefault();
-    draggingCard = {
-      type: btn.dataset.type,
-      cost: Number(btn.dataset.cost)
-    };
+    draggingCard = { type: btn.dataset.type, cost: Number(btn.dataset.cost) };
   });
 });
 
-// ================= POINTER MOVE =================
 document.addEventListener("pointermove", e => {
   const rect = canvas.getBoundingClientRect();
   pointerX = e.clientX - rect.left;
   pointerY = e.clientY - rect.top;
 });
 
-// ================= DROP / CLICK PLACE =================
-canvas.addEventListener("click", e => {
-  placeCard(e.clientX, e.clientY);
-});
-
+canvas.addEventListener("click", e => placeCard(e.clientX, e.clientY));
 document.addEventListener("pointerup", e => {
-  // Drop after drag
   if (draggingCard) placeCard(e.clientX, e.clientY);
   draggingCard = null;
 });
@@ -176,12 +158,14 @@ function placeCard(clientX, clientY) {
   const x = clientX - rect.left;
   const y = clientY - rect.top;
 
-  // Only player side
-  if (x > canvas.width / 2) return;
+  if (x > canvas.width / 2 || elixir <= 0) return;
+
+  let lane = 0;
+  if (y > 200) lane = 1;
+  if (y > 330) lane = 2;
 
   let card = draggingCard || selectedCard;
   if (!card || elixir < card.cost) return;
-
   elixir -= card.cost;
 
   let config = {
@@ -191,7 +175,7 @@ function placeCard(clientX, clientY) {
     pekka: { emoji: "🤖", hp: 250, speed: 0.8, dmg: 35 }
   }[card.type];
 
-  troops.push(new Troop(x, y, "player", config.emoji, config.hp, config.speed, config.dmg, 30));
+  troops.push(new Troop(x, lane, "player", config.emoji, config.hp, config.speed, config.dmg, 30));
 
   selectedCard = null;
   document.querySelectorAll("#cards button").forEach(b => b.classList.remove("selected"));
@@ -199,12 +183,34 @@ function placeCard(clientX, clientY) {
 
 // ================= ENEMY AI =================
 setInterval(() => {
-  troops.push(new Troop(820, 260, "enemy", "👾", 160, -1, 14, 30));
+  const lane = Math.floor(Math.random() * 3);
+  troops.push(new Troop(820, lane, "enemy", "👾", 160, -1, 14, 30));
 }, 3000);
+
+// ================= DRAW LANES & BRIDGES =================
+function drawArena() {
+  ctx.fillStyle = "#2e7c31";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Draw lanes
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 2;
+  lanes.forEach(y => {
+    ctx.beginPath();
+    ctx.moveTo(0, y + 40);
+    ctx.lineTo(canvas.width, y + 40);
+    ctx.stroke();
+  });
+
+  // Draw bridges (emoji style)
+  ctx.font = "30px serif";
+  const bridgeX = canvas.width / 2 - 15;
+  lanes.forEach(y => ctx.fillText("🌉", bridgeX, y + 30));
+}
 
 // ================= GAME LOOP =================
 function gameLoop() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawArena();
 
   towers.forEach(t => {
     t.draw();
@@ -232,7 +238,7 @@ function gameLoop() {
   arrows = arrows.filter(a => !a.hit);
   troops = troops.filter(t => t.hp > 0);
 
-  // Ghost for dragging
+  // Ghost troop for dragging
   if (draggingCard) {
     ctx.globalAlpha = 0.6;
     let emoji = {
