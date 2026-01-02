@@ -3,21 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <title>Dash Royale</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<h1>⚔️ Dash Royale ⚔️</h1>
+  <h1 class="title">⚔️ Dash Royale ⚔️</h1>
 
-<div id="ui">
-  <div id="elixir">Elixir: 10</div>
-  <div id="cards">
-    <button onclick="spawnTroop()">Knight (3)</button>
+  <div id="ui">
+    <div id="elixir">Elixir: 10</div>
+
+    <div id="cards">
+      <button onclick="selectCard('knight',3)">Knight (3)</button>
+      <button onclick="selectCard('archer',3)">Archer (3)</button>
+      <button onclick="selectCard('giant',5)">Giant (5)</button>
+      <button onclick="selectCard('pekka',4)">Mini Pekka (4)</button>
+    </div>
   </div>
-</div>
 
-<canvas id="game" width="900" height="500"></canvas>
+  <canvas id="game" width="900" height="500"></canvas>
 
-<script src="script.js"></script>
+  <p class="hint">Click a card, then click on your side of the arena to deploy</p>
+
+  <script src="script.js"></script>
 </body>
 </html>
