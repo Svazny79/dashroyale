@@ -44,12 +44,25 @@ function startGameTimer() {
     if (timeRemaining <= 0) {
       clearInterval(timerInterval);
       gameStarted = false;
-      timerDisplay.innerText = "Game Over";
+      checkWinner();
       return;
     }
     timeRemaining--;
     updateTimerDisplay();
   }, 1000);
+}
+
+function checkWinner() {
+  const playerTowers = towers.filter(t => t.team === "player" && t.hp > 0).length;
+  const enemyTowers = towers.filter(t => t.team === "enemy" && t.hp > 0).length;
+
+  if (playerTowers > enemyTowers) {
+    timerDisplay.innerText = "You Win! 🏆";
+  } else if (enemyTowers > playerTowers) {
+    timerDisplay.innerText = "You Lose 😢";
+  } else {
+    timerDisplay.innerText = "Draw 🤝";
+  }
 }
 
 // ================= TROOP =================
@@ -291,6 +304,7 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
+// ================= ELIXIR REGEN =================
 setInterval(() => { if (elixir < 10 && gameStarted) elixir++; }, 1000);
 
 gameLoop();
