@@ -2,47 +2,94 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 let elixir = 10;
-let selectedCard = null;
 let troops = [];
-let projectiles = [];
-let gameOver = false;
+let arrows = [];
+let draggingCard = null;
 
-// ================= TROOPS =================
+// ================= TROOP =================
 class Troop {
-  constructor(x, y, team, hp, speed) {
+  constructor(x, y, team, hp, speed, damage, range) {
     this.x = x;
     this.y = y;
     this.team = team;
     this.hp = hp;
     this.speed = speed;
+    this.damage = damage;
+    this.range = range;
+    this.cooldown = 0;
   }
 
-  update() {
-    this.x += this.speed;
+  update(enemies) {
+    const target = enemies.find(e => Math.abs(e.x - this.x) < this.range);
+
+    if (target) {
+      if (this.cooldown <= 0) {
+        target.hp -= this.damage;
+        this.cooldown = 60;
+      }
+    } else {
+      this.x += this.speed;
+    }
+
+    if (this.cooldown > 0) this.cooldown--;
   }
 
   draw() {
-    ctx.fillStyle = this.team === "player" ? "blue" : "red";
+    ctx.fillStyle = this.team === "player" ? "#00bfff" : "#ff3333";
     ctx.fillRect(this.x, this.y, 22, 22);
 
     ctx.fillStyle = "green";
-    ctx.fillRect(this.x, this.y - 5, (this.hp / 150) * 22, 3);
+    ctx.fillRect(this.x, this.y - 5, (this.hp / 200) * 22, 3);
   }
 }
 
-// ================= PROJECTILES =================
+// ================= TOWER =================
+class Tower {
+  constructor(x, team, hp) {
+    this.x = x;
+    this.y = 200;
+    this.team = team;
+    this.hp = hp;
+    this.range = 220;
+    this.cooldown = 0;
+  }
+
+  update(targets) {
+    if (this.cooldown > 0) {
+      this.cooldown--;
+      return;
+    }
+
+    const target = targets.find(t => Math.abs(t.x - this.x) < this.range);
+    if (target) {
+      arrows.push(new Arrow(this.x, this.y + 20, target));
+      this.cooldown = 50;
+    }
+  }
+
+  draw() {
+    ctx.fillStyle = this.team === "player" ? "#1ecbff" : "#ff5555";
+    ctx.fillRect(this.x, this.y, 40, 80);
+
+    ctx.fillStyle = "green";
+    ctx.fillRect(this.x, this.y - 8, (this.hp / 800) * 40, 5);
+  }
+}
+
+// ================= PROJECTILE =================
 class Arrow {
   constructor(x, y, target) {
     this.x = x;
     this.y = y;
     this.target = target;
+    this.hit = false;
   }
 
   update() {
-    this.x += (this.target.x - this.x) * 0.1;
-    this.y += (this.target.y - this.y) * 0.1;
+    this.x += (this.target.x - this.x) * 0.12;
+    this.y += (this.target.y - this.y) * 0.12;
 
-    if (Math.abs(this.x - this.target.x) < 5) {
+    if (Math.abs(this.x - this.target.x) < 6) {
       this.target.hp -= 20;
       this.hit = true;
     }
@@ -55,64 +102,32 @@ class Arrow {
 }
 
 // ================= TOWERS =================
-class Tower {
-  constructor(x, team, hp) {
-    this.x = x;
-    this.y = 200;
-    this.team = team;
-    this.hp = hp;
-    this.range = 200;
-    this.cooldown = 0;
-  }
-
-  update(targets) {
-    if (this.cooldown > 0) {
-      this.cooldown--;
-      return;
-    }
-
-    const target = targets.find(
-      t => Math.abs(t.x - this.x) < this.range
-    );
-
-    if (target) {
-      projectiles.push(new Arrow(this.x, this.y, target));
-      this.cooldown = 60;
-    }
-  }
-
-  draw() {
-    ctx.fillStyle = this.team === "player" ? "#00bfff" : "#ff3333";
-    ctx.fillRect(this.x, this.y, 40, 80);
-
-    ctx.fillStyle = "green";
-    ctx.fillRect(this.x, this.y - 8, (this.hp / 800) * 40, 5);
-  }
-}
-
-// ================= TOWER SETUP =================
 const towers = [
-  // Player
-  new Tower(20, "player", 500),
-  new Tower(20, "player", 500),
-  new Tower(120, "player", 800), // King
-
-  // Enemy
-  new Tower(840, "enemy", 500),
-  new Tower(840, "enemy", 500),
-  new Tower(740, "enemy", 800) // King
+  new Tower(30, "player", 500),
+  new Tower(30, "player", 500),
+  new Tower(120, "player", 800),
+  new Tower(830, "enemy", 500),
+  new Tower(830, "enemy", 500),
+  new Tower(740, "enemy", 800)
 ];
 
-// ================= CARDS =================
-function selectCard(type, cost) {
-  if (elixir < cost) return;
-  selectedCard = { type, cost };
-  document.querySelectorAll("button").forEach(b => b.classList.remove("selected"));
-  event.target.classList.add("selected");
-}
+// ================= DRAG & DROP =================
+document.querySelectorAll("#cards button").forEach(btn => {
+  btn.addEventListener("mousedown", () => {
+    draggingCard = {
+      type: btn.dataset.type,
+      cost: Number(btn.dataset.cost)
+    };
+    btn.classList.add("dragging");
+  });
 
-canvas.addEventListener("click", e => {
-  if (!selectedCard || gameOver) return;
+  btn.addEventListener("mouseup", () => {
+    btn.classList.remove("dragging");
+  });
+});
+
+canvas.addEventListener("mouseup", e => {
+  if (!draggingCard || elixir < draggingCard.cost) return;
 
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
@@ -120,54 +135,56 @@ canvas.addEventListener("click", e => {
 
   if (x > canvas.width / 2) return;
 
-  elixir -= selectedCard.cost;
+  elixir -= draggingCard.cost;
 
-  let hp = 120, speed = 1;
-  if (selectedCard.type === "giant") { hp = 300; speed = 0.5; }
-  if (selectedCard.type === "pekka") { hp = 200; speed = 0.8; }
+  let hp = 150, speed = 1, dmg = 15, range = 30;
+  if (draggingCard.type === "giant") { hp = 350; speed = 0.5; dmg = 25; }
+  if (draggingCard.type === "pekka") { hp = 250; dmg = 35; }
 
-  troops.push(new Troop(x, y, "player", hp, speed));
-  selectedCard = null;
-  document.querySelectorAll("button").forEach(b => b.classList.remove("selected"));
+  troops.push(new Troop(x, y, "player", hp, speed, dmg, range));
+  draggingCard = null;
 });
 
 // ================= ENEMY AI =================
 setInterval(() => {
-  troops.push(new Troop(800, 250, "enemy", 120, -1));
+  troops.push(new Troop(800, 260, "enemy", 150, -1, 15, 30));
 }, 3000);
 
 // ================= GAME LOOP =================
-function updateGame() {
+function gameLoop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   towers.forEach(t => {
     t.draw();
-    t.update(t.team === "player"
-      ? troops.filter(e => e.team === "enemy")
-      : troops.filter(e => e.team === "player"));
+    t.update(
+      t.team === "player"
+        ? troops.filter(e => e.team === "enemy")
+        : troops.filter(e => e.team === "player")
+    );
   });
 
   troops.forEach(t => {
-    t.update();
+    t.update(t.team === "player"
+      ? troops.filter(e => e.team === "enemy")
+      : troops.filter(e => e.team === "player"));
     t.draw();
   });
 
-  projectiles.forEach(p => {
-    p.update();
-    p.draw();
+  arrows.forEach(a => {
+    a.update();
+    a.draw();
   });
 
-  projectiles = projectiles.filter(p => !p.hit);
+  arrows = arrows.filter(a => !a.hit);
   troops = troops.filter(t => t.hp > 0);
 
   document.getElementById("elixir").innerText = "Elixir: " + elixir;
 
-  if (towers[5].hp <= 0) alert("🏆 YOU WIN!");
-  if (towers[2].hp <= 0) alert("💀 YOU LOSE!");
+  requestAnimationFrame(gameLoop);
 }
 
 setInterval(() => {
   if (elixir < 10) elixir++;
 }, 1000);
 
-setInterval(updateGame, 16);
+gameLoop();
