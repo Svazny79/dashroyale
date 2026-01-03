@@ -1,30 +1,33 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-// ================= STATE =================
-let elixir = 10;
-let maxElixir = 10;
-let doubleElixir = false;
+/* ================= GAME STATE ================= */
 let gameStarted = false;
 let paused = false;
 let overtime = false;
+
 let timeRemaining = 0;
-let timerInterval = null;
+let timerInterval;
+
+let elixir = 10;
+let enemyElixir = 10;
+let maxElixir = 10;
+let doubleElixir = false;
 
 let troops = [];
-let spells = [];
 let floatingTexts = [];
+let towers = [];
 
 let playerCrowns = 0;
 let enemyCrowns = 0;
 
 let selectedCard = null;
 
-// ================= BUTTONS =================
-const pauseBtn = document.getElementById("pauseBtn");
-const restartBtn = document.getElementById("restartBtn");
+/* ================= UI ================= */
 const timerDisplay = document.getElementById("timer");
 const timerOptions = document.getElementById("timer-options");
+const pauseBtn = document.getElementById("pauseBtn");
+const restartBtn = document.getElementById("restartBtn");
 
 pauseBtn.onclick = () => {
   if (!gameStarted) return;
@@ -32,9 +35,9 @@ pauseBtn.onclick = () => {
   pauseBtn.innerText = paused ? "Resume" : "Pause";
 };
 
-restartBtn.onclick = () => restartGame();
+restartBtn.onclick = restartGame;
 
-// ================= TIMER =================
+/* ================= TIMER ================= */
 document.querySelectorAll("#timer-options button").forEach(btn => {
   btn.onclick = () => startGame(parseInt(btn.dataset.time));
 });
@@ -43,13 +46,13 @@ function startGame(seconds) {
   restartGame();
   gameStarted = true;
   paused = false;
-  pauseBtn.innerText = "Pause";
   timerOptions.style.display = "none";
+
   timeRemaining = seconds;
   updateTimer();
 
   timerInterval = setInterval(() => {
-    if (!gameStarted || paused) return;
+    if (paused) return;
 
     if (timeRemaining <= 0) {
       if (playerCrowns === enemyCrowns) {
@@ -62,128 +65,154 @@ function startGame(seconds) {
       clearInterval(timerInterval);
       return;
     }
+
     timeRemaining--;
     updateTimer();
   }, 1000);
 }
 
 function updateTimer() {
-  if (!gameStarted) {
-    timerDisplay.innerText = "Set Time";
-    return;
-  }
   const m = Math.floor(timeRemaining / 60);
   const s = timeRemaining % 60;
-  timerDisplay.innerText = `Time ${m}:${s.toString().padStart(2, "0")}`;
+  timerDisplay.innerText = gameStarted
+    ? `${m}:${s.toString().padStart(2, "0")}`
+    : "Set Time";
 }
 
-// ================= HELPERS =================
+/* ================= HELPERS ================= */
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
-// ================= CLASSES =================
+/* ================= FLOATING DAMAGE ================= */
 class FloatingText {
   constructor(x, y, text) {
     this.x = x;
     this.y = y;
     this.text = text;
-    this.a = 1;
+    this.alpha = 1;
   }
-  update() { this.y -= 0.6; this.a -= 0.02; }
+  update() {
+    this.y -= 0.5;
+    this.alpha -= 0.02;
+  }
   draw() {
-    ctx.globalAlpha = this.a;
+    ctx.globalAlpha = this.alpha;
     ctx.fillStyle = "#ffd700";
-    ctx.font = "18px serif";
+    ctx.font = "16px serif";
     ctx.fillText(this.text, this.x, this.y);
     ctx.globalAlpha = 1;
   }
 }
 
+/* ================= TOWER ================= */
 class Tower {
-  constructor(x, y, team, type) {
-    this.x = x; this.y = y;
-    this.team = team; this.type = type;
-    this.hp = type === "king" ? 800 : 500;
+  constructor(x, y, team, king = false) {
+    this.x = x;
+    this.y = y;
+    this.team = team;
+    this.king = king;
+    this.hp = king ? 900 : 500;
     this.maxHp = this.hp;
-    this.range = 240;
-    this.cool = 0;
+    this.range = 220;
+    this.cooldown = 0;
   }
-  update(targets) {
-    if (!gameStarted || paused) return;
-    if (this.cool > 0) { this.cool--; return; }
-    const t = targets.sort((a, b) => dist(this, a) - dist(this, b))[0];
-    if (t && dist(this, t) <= this.range) {
-      t.hp -= 25;
-      floatingTexts.push(new FloatingText(t.x, t.y, "-25"));
-      this.cool = 45;
+
+  update(enemies) {
+    if (paused || this.hp <= 0) return;
+
+    if (this.cooldown > 0) {
+      this.cooldown--;
+      return;
     }
+
+    const target = enemies.sort((a, b) => dist(this, a) - dist(this, b))[0];
+    if (!target || dist(this, target) > this.range) return;
+
+    target.hp -= 30;
+    floatingTexts.push(new FloatingText(target.x, target.y, "-30"));
+    this.cooldown = 45;
   }
+
   draw() {
+    if (this.hp <= 0) return;
+
     ctx.font = "40px serif";
-    ctx.fillText(this.type === "king" ? "👑" : "🏰", this.x - 20, this.y + 40);
+    ctx.fillText(this.king ? "👑" : "🏰", this.x - 20, this.y + 35);
+
     ctx.fillStyle = this.team === "player" ? "#b14cff" : "#ff3333";
-    ctx.fillRect(this.x - 20, this.y - 12, (this.hp / this.maxHp) * 40, 6);
+    ctx.fillRect(this.x - 20, this.y - 12, (this.hp / this.maxHp) * 40, 5);
   }
 }
 
+/* ================= TROOP ================= */
 class Troop {
   constructor(x, y, team, data) {
-    Object.assign(this, { x, y, team });
     Object.assign(this, data);
+    this.x = x;
+    this.y = y;
+    this.team = team;
     this.maxHp = this.hp;
-    this.cool = 0;
+    this.cooldown = 0;
   }
-  update(enemies, towers) {
-    if (!gameStarted || paused) return;
-    const targets = enemies.concat(towers.filter(t => t.team !== this.team));
+
+  update(enemies, enemyTowers) {
+    if (paused || this.hp <= 0) return;
+
+    const targets = enemies.concat(enemyTowers);
     const target = targets.sort((a, b) => dist(this, a) - dist(this, b))[0];
     if (!target) return;
 
     const d = dist(this, target);
+
     if (d <= this.range) {
-      if (this.cool <= 0) {
+      if (this.cooldown <= 0) {
         target.hp -= this.dmg;
         floatingTexts.push(new FloatingText(target.x, target.y, `-${this.dmg}`));
-        this.cool = 40;
+        this.cooldown = 35;
       }
-    } else if (!this.ranged) {
-      const a = Math.atan2(target.y - this.y, target.x - this.x);
-      this.x += Math.cos(a) * this.speed;
-      this.y += Math.sin(a) * this.speed;
+    } else {
+      const angle = Math.atan2(target.y - this.y, target.x - this.x);
+      this.x += Math.cos(angle) * this.speed;
+      this.y += Math.sin(angle) * this.speed;
     }
-    if (this.cool > 0) this.cool--;
+
+    if (this.cooldown > 0) this.cooldown--;
   }
+
   draw() {
-    ctx.font = "24px serif";
-    ctx.fillText(this.emoji, this.x - 12, this.y + 12);
+    if (this.hp <= 0) return;
+
+    ctx.font = "26px serif";
+    ctx.fillText(this.emoji, this.x - 13, this.y + 13);
+
     ctx.fillStyle = this.team === "player" ? "#b14cff" : "#ff3333";
     ctx.fillRect(this.x - 12, this.y - 18, (this.hp / this.maxHp) * 24, 4);
   }
 }
 
-// ================= CONFIG =================
+/* ================= CARDS ================= */
 const cards = {
-  knight:{emoji:"🗡️",hp:180,dmg:15,speed:1,range:30,cost:3},
-  archer:{emoji:"🏹",hp:120,dmg:12,speed:0.8,range:120,cost:2,ranged:true},
-  wizard:{emoji:"🪄",hp:150,dmg:20,speed:0.7,range:130,cost:4,ranged:true},
-  giant:{emoji:"🗿",hp:350,dmg:25,speed:0.6,range:30,cost:5}
+  knight: { emoji: "🗡️", hp: 200, dmg: 18, speed: 1.2, range: 28, cost: 3 },
+  archer: { emoji: "🏹", hp: 130, dmg: 14, speed: 0.9, range: 130, cost: 2 },
+  wizard: { emoji: "🪄", hp: 160, dmg: 22, speed: 0.8, range: 140, cost: 4 },
+  giant: { emoji: "🗿", hp: 380, dmg: 26, speed: 0.6, range: 30, cost: 5 }
 };
 
-// ================= TOWERS =================
-let towers;
-function resetTowers(){
+/* ================= TOWERS SETUP ================= */
+function resetTowers() {
   towers = [
-    new Tower(40,120,"player","princess"),
-    new Tower(40,320,"player","princess"),
-    new Tower(140,220,"player","king"),
-    new Tower(860,120,"enemy","princess"),
-    new Tower(860,320,"enemy","princess"),
-    new Tower(760,220,"enemy","king")
+    new Tower(60, 120, "player"),
+    new Tower(60, 320, "player"),
+    new Tower(160, 220, "player", true),
+
+    new Tower(840, 120, "enemy"),
+    new Tower(840, 320, "enemy"),
+    new Tower(740, 220, "enemy", true)
   ];
 }
 
-// ================= INPUT =================
+/* ================= INPUT ================= */
 canvas.onclick = e => {
-  if (!selectedCard || !gameStarted || paused) return;
+  if (!gameStarted || paused || !selectedCard) return;
   if (elixir < cards[selectedCard].cost) return;
 
   const r = canvas.getBoundingClientRect();
@@ -196,45 +225,50 @@ canvas.onclick = e => {
   selectedCard = null;
 };
 
-// ================= RESTART =================
-function restartGame(){
-  clearInterval(timerInterval);
-  gameStarted = false;
-  paused = false;
-  overtime = false;
-  doubleElixir = false;
-  timeRemaining = 0;
-  elixir = 10;
-  playerCrowns = 0;
-  enemyCrowns = 0;
-  troops = [];
-  spells = [];
-  floatingTexts = [];
-  resetTowers();
-  timerOptions.style.display = "block";
-  updateTimer();
-}
+/* ================= ENEMY AI ================= */
+setInterval(() => {
+  if (!gameStarted || paused) return;
 
-// ================= LOOP =================
-function loop(){
-  ctx.fillStyle = overtime ? "#5b1a1a" : "#2e7c31";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+  enemyElixir = Math.min(maxElixir, enemyElixir + 1);
+  if (enemyElixir >= 4) {
+    enemyElixir -= 4;
+    troops.push(new Troop(780, 220, "enemy", cards.knight));
+  }
+}, 2600);
 
-  towers.forEach(t=>{
-    t.update(troops.filter(tr=>tr.team!==t.team));
-    t.draw();
+/* ================= ELIXIR ================= */
+setInterval(() => {
+  if (!gameStarted || paused) return;
+  elixir = Math.min(maxElixir, elixir + (doubleElixir ? 2 : 1));
+}, 1000);
+
+/* ================= GAME LOOP ================= */
+function loop() {
+  ctx.fillStyle = overtime ? "#5a1a1a" : "#2e7c31";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  towers.forEach(t =>
+    t.update(troops.filter(tr => tr.team !== t.team))
+  );
+
+  troops.forEach(t =>
+    t.update(
+      troops.filter(e => e.team !== t.team),
+      towers.filter(tw => tw.team !== t.team)
+    )
+  );
+
+  towers = towers.filter(t => t.hp > 0);
+  troops = troops.filter(t => t.hp > 0);
+
+  towers.forEach(t => t.draw());
+  troops.forEach(t => t.draw());
+
+  floatingTexts.forEach(f => {
+    f.update();
+    f.draw();
   });
-
-  troops.forEach(t=>t.update(
-    troops.filter(e=>e.team!==t.team),
-    towers
-  ));
-
-  troops = troops.filter(t=>t.hp>0);
-
-  troops.forEach(t=>t.draw());
-  floatingTexts.forEach(f=>{f.update();f.draw();});
-  floatingTexts = floatingTexts.filter(f=>f.a>0);
+  floatingTexts = floatingTexts.filter(f => f.alpha > 0);
 
   document.getElementById("elixir").innerText =
     `Elixir: ${elixir} | 👑 ${playerCrowns} - ${enemyCrowns}`;
@@ -242,11 +276,32 @@ function loop(){
   requestAnimationFrame(loop);
 }
 
-// ================= ELIXIR =================
-setInterval(()=>{
-  if (!gameStarted || paused) return;
-  elixir = Math.min(maxElixir, elixir + (doubleElixir ? 2 : 1));
-},1000);
+/* ================= END / RESET ================= */
+function endGame() {
+  gameStarted = false;
+  timerDisplay.innerText =
+    playerCrowns > enemyCrowns ? "YOU WIN 🏆" : "YOU LOSE 😢";
+}
+
+function restartGame() {
+  clearInterval(timerInterval);
+  gameStarted = false;
+  paused = false;
+  overtime = false;
+  doubleElixir = false;
+
+  elixir = 10;
+  enemyElixir = 10;
+  troops = [];
+  floatingTexts = [];
+
+  playerCrowns = 0;
+  enemyCrowns = 0;
+
+  resetTowers();
+  timerOptions.style.display = "block";
+  timerDisplay.innerText = "Set Time";
+}
 
 resetTowers();
 loop();
