@@ -18,16 +18,16 @@ const timerDisplay = document.getElementById("timer");
 const timerButtons = document.querySelectorAll("#timer-options button");
 
 timerButtons.forEach(btn => {
-  btn.addEventListener("click", () => {
+  btn.onclick = () => {
     timeRemaining = parseInt(btn.dataset.time);
     gameStarted = true;
     document.getElementById("timer-options").style.display = "none";
-    updateTimerDisplay();
-    startGameTimer();
-  });
+    updateTimer();
+    startTimer();
+  };
 });
 
-function updateTimerDisplay() {
+function updateTimer() {
   if (!gameStarted) {
     timerDisplay.innerText = "Set Time";
     return;
@@ -37,118 +37,114 @@ function updateTimerDisplay() {
   timerDisplay.innerText = `Time: ${m}:${s.toString().padStart(2,"0")}`;
 }
 
-function startGameTimer() {
+function startTimer() {
   const interval = setInterval(() => {
     if (!gameStarted) return;
     if (timeRemaining <= 0) {
-      clearInterval(interval);
       gameStarted = false;
+      clearInterval(interval);
       checkWinner();
       return;
     }
     timeRemaining--;
-    updateTimerDisplay();
+    updateTimer();
   }, 1000);
 }
 
 function checkWinner() {
-  const p = towers.filter(t => t.team === "player" && t.hp > 0).length;
-  const e = towers.filter(t => t.team === "enemy" && t.hp > 0).length;
+  const player = towers.filter(t => t.team==="player").length;
+  const enemy = towers.filter(t => t.team==="enemy").length;
   timerDisplay.innerText =
-    p > e ? "You Win! 🏆" : e > p ? "You Lose 😢" : "Draw 🤝";
+    player > enemy ? "You Win! 🏆" :
+    enemy > player ? "You Lose 😢" :
+    "Draw 🤝";
 }
 
 // ================= HELPERS =================
-function dist(a, b) {
-  return Math.hypot(a.x - b.x, a.y - b.y);
+function distance(a,b){
+  return Math.hypot(a.x-b.x,a.y-b.y);
 }
 
 // ================= TROOP =================
 class Troop {
-  constructor(x, y, team, emoji, hp, speed, dmg, range) {
-    this.x = x;
-    this.y = y;
-    this.team = team;
-    this.emoji = emoji;
-    this.hp = hp;
-    this.maxHp = hp;
-    this.speed = speed;
-    this.damage = dmg;
-    this.range = range;
-    this.cooldown = 0;
-    this.attacking = false;
+  constructor(x,y,team,emoji,hp,speed,dmg,range){
+    this.x=x; this.y=y; this.team=team;
+    this.emoji=emoji;
+    this.hp=hp; this.maxHp=hp;
+    this.speed=speed;
+    this.damage=dmg;
+    this.range=range;
+    this.cooldown=0;
+    this.attacking=false;
   }
 
-  update(enemies, towers) {
-    if (!gameStarted) return;
+  update(enemies,towers){
+    if(!gameStarted) return;
 
-    // Find closest enemy troop (true distance)
-    let target = enemies
-      .sort((a,b) => dist(this,a) - dist(this,b))[0];
+    let target = enemies.sort((a,b)=>distance(this,a)-distance(this,b))[0];
 
-    // If no troop target, target nearest enemy tower
-    if (!target) {
+    if(!target){
       target = towers
-        .filter(t => t.team !== this.team)
-        .sort((a,b) => dist(this,a) - dist(this,b))[0];
+        .filter(t=>t.team!==this.team)
+        .sort((a,b)=>distance(this,a)-distance(this,b))[0];
     }
 
-    if (!target) return;
+    if(!target) return;
 
-    const d = dist(this, target);
+    const d = distance(this,target);
 
-    if (d <= this.range) {
+    if(d<=this.range){
       this.attack(target);
     } else {
-      // Move toward target (X + Y)
-      const angle = Math.atan2(target.y - this.y, target.x - this.x);
-      this.x += Math.cos(angle) * Math.abs(this.speed);
-      this.y += Math.sin(angle) * Math.abs(this.speed);
-      this.attacking = false;
+      const ang = Math.atan2(target.y-this.y,target.x-this.x);
+      this.x += Math.cos(ang)*Math.abs(this.speed);
+      this.y += Math.sin(ang)*Math.abs(this.speed);
+      this.attacking=false;
     }
 
-    if (this.cooldown > 0) this.cooldown--;
+    if(this.cooldown>0) this.cooldown--;
   }
 
-  attack(target) {
-    this.attacking = true;
-    if (this.cooldown <= 0) {
+  attack(target){
+    this.attacking=true;
+    if(this.cooldown<=0){
       target.hp -= this.damage;
-      floatingTexts.push(new FloatingText(target.x, target.y - 20, `-${this.damage}`));
-      this.cooldown = 50;
+      floatingTexts.push(new FloatingText(target.x,target.y-20,`-${this.damage}`));
+      this.cooldown=45;
     }
   }
 
-  draw() {
-    ctx.font = "24px serif";
-    const shake = this.attacking ? Math.random()*4-2 : 0;
-    ctx.fillText(this.emoji, this.x - 12 + shake, this.y + 12 + shake);
-
-    ctx.fillStyle = this.team === "player" ? "#b14cff" : "#ff3333";
-    ctx.fillRect(this.x - 12, this.y - 18, (this.hp / this.maxHp) * 24, 4);
+  draw(){
+    ctx.font="24px serif";
+    const shake=this.attacking?(Math.random()*4-2):0;
+    ctx.fillText(this.emoji,this.x-12+shake,this.y+12+shake);
+    ctx.fillStyle=this.team==="player"?"#b14cff":"#ff3333";
+    ctx.fillRect(this.x-12,this.y-18,(this.hp/this.maxHp)*24,4);
   }
 }
 
 // ================= TOWER =================
 class Tower {
-  constructor(x,y,team,emoji,hp) {
+  constructor(x,y,team,emoji,hp){
     this.x=x; this.y=y; this.team=team;
-    this.emoji=emoji; this.hp=hp; this.maxHp=hp;
-    this.range=220; this.cooldown=0;
+    this.emoji=emoji;
+    this.hp=hp; this.maxHp=hp;
+    this.range=220;
+    this.cooldown=0;
   }
 
-  update(targets) {
-    if (!gameStarted) return;
-    if (this.cooldown>0) { this.cooldown--; return; }
-    const t = targets.sort((a,b)=>dist(this,a)-dist(this,b))[0];
-    if (t && dist(this,t)<=this.range) {
+  update(targets){
+    if(!gameStarted) return;
+    if(this.cooldown>0){this.cooldown--;return;}
+    const t = targets.sort((a,b)=>distance(this,a)-distance(this,b))[0];
+    if(t && distance(this,t)<=this.range){
       t.hp -= 20;
-      floatingTexts.push(new FloatingText(t.x, t.y - 20, "-20"));
-      this.cooldown = 50;
+      floatingTexts.push(new FloatingText(t.x,t.y-20,"-20"));
+      this.cooldown=50;
     }
   }
 
-  draw() {
+  draw(){
     ctx.font="40px serif";
     ctx.fillText(this.emoji,this.x-20,this.y+40);
     ctx.fillStyle=this.team==="player"?"#b14cff":"#ff3333";
@@ -158,8 +154,10 @@ class Tower {
 
 // ================= FLOATING TEXT =================
 class FloatingText {
-  constructor(x,y,text){this.x=x;this.y=y;this.text=text;this.alpha=1;}
-  update(){this.y-=0.5;this.alpha-=0.02;}
+  constructor(x,y,text){
+    this.x=x; this.y=y; this.text=text; this.alpha=1;
+  }
+  update(){ this.y-=0.5; this.alpha-=0.02; }
   draw(){
     ctx.globalAlpha=this.alpha;
     ctx.fillStyle="#ffd700";
@@ -170,7 +168,7 @@ class FloatingText {
 }
 
 // ================= TOWERS =================
-const towers = [
+let towers = [
   new Tower(40,100,"player","🏰",500),
   new Tower(40,300,"player","🏰",500),
   new Tower(140,200,"player","👑",800),
@@ -219,7 +217,7 @@ canvas.onclick=e=>placeCard(e.clientX,e.clientY);
 function placeCard(cx,cy){
   if(!gameStarted) return;
   const r=canvas.getBoundingClientRect();
-  const x=cx-r.left, y=cy-r.top;
+  const x=cx-r.left,y=cy-r.top;
   if(x>canvas.width/2) return;
 
   const card=draggingCard||selectedCard;
@@ -255,7 +253,12 @@ function loop(){
     towers
   ));
 
-  troops=troops.filter(t=>t.hp>0);
+  // REMOVE DEAD TROOPS
+  troops = troops.filter(t=>t.hp>0);
+
+  // REMOVE DEAD TOWERS
+  towers = towers.filter(t=>t.hp>0);
+
   troops.forEach(t=>t.draw());
 
   floatingTexts.forEach(f=>{f.update();f.draw();});
