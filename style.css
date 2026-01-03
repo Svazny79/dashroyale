@@ -8,30 +8,25 @@ body {
 
 #top-ui {
   display:flex;
-  justify-content:space-between;
+  justify-content:space-around;
   align-items:center;
-  padding:10px 20px;
+  padding:10px;
   background:#020617;
 }
 
-#timer {
-  font-size:20px;
-}
-
 #elixir-bar {
-  width:220px;
-  height:18px;
+  width:200px;
+  height:16px;
+  border-radius:8px;
   background:#1e293b;
-  border-radius:10px;
   border:2px solid #7c3aed;
   overflow:hidden;
 }
 
 #elixir-fill {
   height:100%;
-  background:linear-gradient(90deg,#9333ea,#c084fc);
   width:100%;
-  transition:width 0.2s;
+  background:linear-gradient(90deg,#9333ea,#c084fc);
 }
 
 canvas {
@@ -49,17 +44,11 @@ canvas {
 }
 
 #cards button {
-  width:70px;
+  width:80px;
   height:90px;
-  border-radius:8px;
+  font-size:26px;
+  border-radius:10px;
   border:2px solid #7c3aed;
   background:#1e293b;
-  color:white;
-  font-weight:bold;
-  cursor:pointer;
-}
-
-#cards button:disabled {
-  opacity:0.4;
-  cursor:not-allowed;
+  cursor:grab;
 }
