@@ -7,6 +7,11 @@ let elixir = 10, enemyElixir = 10, maxElixir = 10, doubleElixir = false;
 let troops = [], towers = [], floating = [];
 let dragging = false, dragPos = { x: 0, y: 0 }, selectedCard = null;
 
+/* ================= SCORE ================= */
+let playerScore = 0, enemyScore = 0;
+const scoreboard = document.getElementById("scoreboard");
+function updateScore() { scoreboard.innerText = `${playerScore} - ${enemyScore}`; }
+
 /* ================= UI ================= */
 const timer = document.getElementById("timer");
 const elixirUI = document.getElementById("elixir");
@@ -31,8 +36,6 @@ const allCards = {
   pekka: { emoji: "🤖", hp: 330, dmg: 45, speed: 0.7, range: 30, cost: 4 },
   fireball: { spell: true, dmg: 120, radius: 80, cost: 4 },
   arrows: { spell: true, dmg: 80, radius: 100, cost: 3 },
-
-  // NEW CARDS
   babyDragon: { emoji: "🐉", hp: 280, dmg: 22, speed: 1.0, range: 80, cost: 4 },
   musketeer: { emoji: "🎯", hp: 150, dmg: 20, speed: 1.0, range: 130, cost: 3 },
   valkyrie: { emoji: "🪓", hp: 200, dmg: 18, speed: 0.9, range: 30, cost: 4 },
@@ -103,6 +106,7 @@ class Tower {
     this.x = x; this.y = y; this.team = team;
     this.hp = king ? 900 : 500; this.maxHp = this.hp;
     this.range = 220; this.cool = 0; this.king = king;
+    this.captured = false;
   }
   update() {
     if (this.cool > 0) this.cool--;
@@ -161,9 +165,6 @@ function drop() {
   dragging = false; selectedCard = null;
 }
 
-canvas.onmouseup = drop;
-canvas.ontouchend = drop;
-
 /* ================= TIMER ================= */
 document.querySelectorAll("#timer-options button").forEach(b => {
   b.onclick = () => { timeLeft = parseInt(b.dataset.time); started = true; document.getElementById("timer-options").style.display = "none"; };
@@ -188,7 +189,9 @@ setInterval(() => {
 setInterval(() => {
   if (!started || enemyElixir < 3) return;
   enemyElixir -= 3;
-  troops.push(new Troop(850, 220, "enemy", allCards.knight));
+  // Spawn random card from deck for enemy
+  const c = allCards[deck[Math.floor(Math.random() * deck.length)]];
+  if (!c.spell) troops.push(new Troop(850, 220, "enemy", c));
 }, 2600);
 
 /* ================= SETUP ================= */
@@ -202,6 +205,7 @@ towers.push(
 );
 
 updateHandUI();
+updateScore();
 
 /* ================= LOOP ================= */
 function loop() {
@@ -211,12 +215,23 @@ function loop() {
   towers.forEach(t => t.update());
   troops.forEach(t => t.update());
 
+  // Remove dead troops and handle score
   troops = troops.filter(t => t.hp > 0);
-  towers = towers.filter(t => t.hp > 0);
+  for (let i = towers.length - 1; i >= 0; i--) {
+    if (towers[i].hp <= 0) {
+      if (towers[i].king) {
+        if (towers[i].team === "player") enemyScore++; else playerScore++;
+        updateScore();
+        started = false;
+        alert(playerScore > enemyScore ? "You Win! 👑" : "You Lose 😢");
+        return;
+      }
+      towers.splice(i, 1);
+    }
+  }
 
   towers.forEach(t => t.draw());
   troops.forEach(t => t.draw());
-
   floating.forEach(f => { f.update(); f.draw(); });
   floating = floating.filter(f => f.a > 0);
 
