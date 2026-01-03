@@ -8,7 +8,7 @@ let troops = [], towers = [], floating = [];
 let dragging = false, dragPos = { x: 0, y: 0 }, selectedCard = null;
 
 /* ================= SCORE ================= */
-let playerScore = 0, enemyScore = 0;
+let playerCrowns = 0, enemyCrowns = 0;
 
 /* ================= UTILS ================= */
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -95,10 +95,11 @@ class Troop {
 
 /* ================= TOWER ================= */
 class Tower {
-  constructor(x, y, team, king = false) {
+  constructor(x, y, team, king = false, crownIdx = null) {
     this.x = x; this.y = y; this.team = team;
     this.hp = king ? 900 : 500; this.maxHp = this.hp;
     this.range = 220; this.cool = 0; this.king = king;
+    this.crownIdx = crownIdx; // which crown it gives
   }
   update() {
     if (this.cool > 0) this.cool--;
@@ -138,12 +139,8 @@ document.querySelectorAll("#cards button").forEach(b => {
   b.ontouchstart = e => { e.preventDefault(); startDrag(b.dataset.card); };
 });
 
-canvas.onmousemove = e => {
-  const r = canvas.getBoundingClientRect(); moveDrag(e.clientX - r.left, e.clientY - r.top);
-};
-canvas.ontouchmove = e => {
-  const r = canvas.getBoundingClientRect(); moveDrag(e.touches[0].clientX - r.left, e.touches[0].clientY - r.top);
-};
+canvas.onmousemove = e => { moveDrag(e.clientX - canvas.getBoundingClientRect().left, e.clientY - canvas.getBoundingClientRect().top); };
+canvas.ontouchmove = e => { moveDrag(e.touches[0].clientX - canvas.getBoundingClientRect().left, e.touches[0].clientY - canvas.getBoundingClientRect().top); };
 
 function drop() {
   if (!dragging || !selectedCard) return;
@@ -161,12 +158,7 @@ function drop() {
 document.querySelectorAll("#timer-options button").forEach(b => {
   b.onclick = () => { timeLeft = parseInt(b.dataset.time); started = true; document.getElementById("timer-options").style.display = "none"; };
 });
-
-setInterval(() => {
-  if (!started || timeLeft <= 0) return;
-  timeLeft--;
-  if (timeLeft === 0) { overtime = true; doubleElixir = true; }
-}, 1000);
+setInterval(() => { if (!started || timeLeft <= 0) return; timeLeft--; if (timeLeft === 0) overtime = true; }, 1000);
 
 /* ================= ELIXIR ================= */
 setInterval(() => {
@@ -186,12 +178,12 @@ setInterval(() => {
 
 /* ================= SETUP ================= */
 towers.push(
-  new Tower(80, 120, "player"),
-  new Tower(80, 330, "player"),
-  new Tower(160, 225, "player", true),
-  new Tower(820, 120, "enemy"),
-  new Tower(820, 330, "enemy"),
-  new Tower(740, 225, "enemy", true)
+  new Tower(80, 120, "player", false, 0),
+  new Tower(80, 330, "player", false, 1),
+  new Tower(160, 225, "player", true, 2),
+  new Tower(820, 120, "enemy", false, 0),
+  new Tower(820, 330, "enemy", false, 1),
+  new Tower(740, 225, "enemy", true, 2)
 );
 
 updateHandUI();
@@ -201,41 +193,39 @@ function loop() {
   ctx.fillStyle = overtime ? "#4c1d1d" : "#166534";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Draw scoreboard
-  ctx.fillStyle = "#ffffff";
+  // Draw scoreboard with crowns
   ctx.font = "28px serif";
-  ctx.fillText(`${playerScore} - ${enemyScore}`, canvas.width / 2 - 30, 40);
-  ctx.fillText(`Time: ${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, "0")}`, canvas.width / 2 - 50, 80);
+  ctx.fillStyle = "#fff";
+  let crown = "👑";
+  ctx.fillText(`${crown.repeat(playerCrowns)} - ${crown.repeat(enemyCrowns)}`, canvas.width/2 - 60, 40);
+  ctx.fillText(`Time: ${Math.floor(timeLeft/60)}:${String(timeLeft%60).padStart(2,"0")}`, canvas.width/2 - 50, 80);
 
   towers.forEach(t => t.update());
   troops.forEach(t => t.update());
 
-  // Remove dead troops & towers
+  // Remove dead troops & towers and update crowns
   troops = troops.filter(t => t.hp > 0);
   for (let i = towers.length - 1; i >= 0; i--) {
     if (towers[i].hp <= 0) {
       if (towers[i].king) {
-        if (towers[i].team === "player") enemyScore++; else playerScore++;
-        alert(playerScore > enemyScore ? "You Win! 👑" : "You Lose 😢");
+        if (towers[i].team === "player") enemyCrowns++; else playerCrowns++;
         started = false;
-        return;
       }
-      towers.splice(i, 1);
+      towers.splice(i,1);
     }
   }
 
   towers.forEach(t => t.draw());
   troops.forEach(t => t.draw());
-
   floating.forEach(f => { f.update(); f.draw(); });
   floating = floating.filter(f => f.a > 0);
 
+  // Dragging card
   if (dragging && selectedCard && allCards[selectedCard].emoji) {
     ctx.font = "28px serif";
-    ctx.fillText(`${allCards[selectedCard].emoji} (${allCards[selectedCard].cost})`, dragPos.x - 14, dragPos.y + 14);
+    ctx.fillText(`${allCards[selectedCard].emoji} (${allCards[selectedCard].cost})`, dragPos.x-14, dragPos.y+14);
   }
 
   requestAnimationFrame(loop);
 }
-
 loop();
