@@ -9,12 +9,6 @@ let dragging = false, dragPos = { x: 0, y: 0 }, selectedCard = null;
 
 /* ================= SCORE ================= */
 let playerScore = 0, enemyScore = 0;
-const scoreboard = document.getElementById("scoreboard");
-function updateScore() { scoreboard.innerText = `${playerScore} - ${enemyScore}`; }
-
-/* ================= UI ================= */
-const timer = document.getElementById("timer");
-const elixirUI = document.getElementById("elixir");
 
 /* ================= UTILS ================= */
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -54,14 +48,13 @@ function rotateDeck(card) {
   hand.splice(hand.indexOf(card), 1);
   deck.push(card);
   hand.push(deck.shift());
-  updateHandUI();
 }
 
 function updateHandUI() {
   document.querySelectorAll("#cards button").forEach((b, i) => {
     const c = hand[i];
     b.dataset.card = c;
-    b.innerText = allCards[c].emoji || "✨";
+    b.innerText = `${allCards[c].emoji} (${allCards[c].cost})`;
     b.disabled = cooldowns[c] > 0;
     b.style.opacity = b.disabled ? 0.4 : 1;
   });
@@ -106,7 +99,6 @@ class Tower {
     this.x = x; this.y = y; this.team = team;
     this.hp = king ? 900 : 500; this.maxHp = this.hp;
     this.range = 220; this.cool = 0; this.king = king;
-    this.captured = false;
   }
   update() {
     if (this.cool > 0) this.cool--;
@@ -173,8 +165,7 @@ document.querySelectorAll("#timer-options button").forEach(b => {
 setInterval(() => {
   if (!started || timeLeft <= 0) return;
   timeLeft--;
-  timer.innerText = `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, "0")}`;
-  if (timeLeft === 0) { overtime = true; doubleElixir = true; timer.innerText = "OVERTIME 🔥"; }
+  if (timeLeft === 0) { overtime = true; doubleElixir = true; }
 }, 1000);
 
 /* ================= ELIXIR ================= */
@@ -189,7 +180,6 @@ setInterval(() => {
 setInterval(() => {
   if (!started || enemyElixir < 3) return;
   enemyElixir -= 3;
-  // Spawn random card from deck for enemy
   const c = allCards[deck[Math.floor(Math.random() * deck.length)]];
   if (!c.spell) troops.push(new Troop(850, 220, "enemy", c));
 }, 2600);
@@ -205,25 +195,29 @@ towers.push(
 );
 
 updateHandUI();
-updateScore();
 
 /* ================= LOOP ================= */
 function loop() {
   ctx.fillStyle = overtime ? "#4c1d1d" : "#166534";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+  // Draw scoreboard
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "28px serif";
+  ctx.fillText(`${playerScore} - ${enemyScore}`, canvas.width / 2 - 30, 40);
+  ctx.fillText(`Time: ${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, "0")}`, canvas.width / 2 - 50, 80);
+
   towers.forEach(t => t.update());
   troops.forEach(t => t.update());
 
-  // Remove dead troops and handle score
+  // Remove dead troops & towers
   troops = troops.filter(t => t.hp > 0);
   for (let i = towers.length - 1; i >= 0; i--) {
     if (towers[i].hp <= 0) {
       if (towers[i].king) {
         if (towers[i].team === "player") enemyScore++; else playerScore++;
-        updateScore();
-        started = false;
         alert(playerScore > enemyScore ? "You Win! 👑" : "You Lose 😢");
+        started = false;
         return;
       }
       towers.splice(i, 1);
@@ -232,15 +226,15 @@ function loop() {
 
   towers.forEach(t => t.draw());
   troops.forEach(t => t.draw());
+
   floating.forEach(f => { f.update(); f.draw(); });
   floating = floating.filter(f => f.a > 0);
 
   if (dragging && selectedCard && allCards[selectedCard].emoji) {
     ctx.font = "28px serif";
-    ctx.fillText(allCards[selectedCard].emoji, dragPos.x - 14, dragPos.y + 14);
+    ctx.fillText(`${allCards[selectedCard].emoji} (${allCards[selectedCard].cost})`, dragPos.x - 14, dragPos.y + 14);
   }
 
-  elixirUI.innerText = `Elixir: ${elixir}`;
   requestAnimationFrame(loop);
 }
 
