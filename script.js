@@ -74,6 +74,16 @@ Object.keys(baseCards).forEach(c=>{
 });
 
 /**********************
+  DECK
+**********************/
+let deck = [];
+let activeDeck = [];
+// Ensure deck always has 8 cards at start
+if(deck.length===0){
+  deck = Object.keys(baseCards).filter(c=>!baseCards[c].spell).slice(0,8);
+}
+
+/**********************
   UPGRADE SCREEN
 **********************/
 function drawUpgradeScreen(){
@@ -106,7 +116,6 @@ function upgradeCard(name){
 /**********************
   DECK BUILDER
 **********************/
-let activeDeck = [];
 function renderDeckBuilder(){
   const allDiv = document.getElementById("allCards");
   const deckDiv = document.getElementById("activeDeck");
@@ -144,7 +153,7 @@ function saveDeck(){
 **********************/
 let elixir = 10,maxElixir=10,gameOver=false,paused=false,playerScore=0,enemyScore=0;
 const lanes=[{x:260},{x:640}];
-let hand=[], troops=[], towers=[], projectiles=[];
+let hand=[], troops=[], towers=[], projectiles=[], deathAnimations=[];
 
 /**********************
   TOWERS
@@ -156,9 +165,12 @@ function resetTowers(){towers=[createTower(260,430,"player"),createTower(640,430
   RESET GAME
 **********************/
 function resetGame(){
-  elixir=10;gameOver=false;paused=false;playerScore=0;enemyScore=0;troops=[];projectiles=[];
+  if(deck.length===0){
+    deck = Object.keys(baseCards).filter(c=>!baseCards[c].spell).slice(0,8);
+  }
+  elixir=10;gameOver=false;paused=false;playerScore=0;enemyScore=0;troops=[];projectiles=[];deathAnimations=[];
   resetTowers();
-  hand = deck.length>=4 ? deck.slice(0,4) : Object.keys(baseCards).slice(0,4);
+  hand = deck.length>=4 ? deck.slice(0,4) : Object.keys(baseCards).filter(c=>!baseCards[c].spell).slice(0,4);
   drawHand();
   updateTimerUI();
   scoreDiv.innerText=`👑 0 - 0`;
@@ -231,14 +243,59 @@ function drawMap(){
 function drawEntity(e){ctx.font=`${e.size||30}px serif`;ctx.textAlign="center";ctx.fillText(e.emoji,e.x,e.y+10);ctx.fillStyle=e.team==="player"?"#a855f7":"#ef4444";ctx.fillRect(e.x-25,e.y-(e.size||30),(e.hp/e.maxHp)*50,6);}
 
 /**********************
-  UPDATE LOGIC
+  UPDATE LOGIC + DEATH ANIMATIONS
 **********************/
 function updateTroop(t){const enemies=[...troops.filter(o=>o.team!==t.team&&o.lane===t.lane),...towers.filter(o=>o.team!==t.team)];if(!enemies.length){t.y+=t.team==="player"?-t.speed:t.speed;return;}const target=enemies[0];const dist=Math.hypot(t.x-target.x,t.y-target.y);if(dist<36 && t.cooldown<=0){target.hp-=t.dmg;t.cooldown=30;}else{const a=Math.atan2(target.y-t.y,target.x-t.x);t.x+=Math.cos(a)*t.speed;t.y+=Math.sin(a)*t.speed;} t.cooldown--}
 
 /**********************
   LOOP
 **********************/
-function loop(){ctx.clearRect(0,0,900,520);drawMap();if(!paused&&!gameOver){troops.forEach(updateTroop);}troops=troops.filter(t=>t.hp>0);towers=towers.filter(t=>{if(t.hp<=0){if(t.king){gameOver=true;if(t.team==="enemy"){playerScore=3;addCrowns(5);}else{enemyScore=3;addCrowns(1);}setTimeout(showMenu,2000);}else{t.team==="enemy"?playerScore++:enemyScore++;}scoreDiv.innerText=`👑 ${playerScore} - ${enemyScore}`;return false;}return true;});troops.forEach(drawEntity);towers.forEach(drawEntity);elixirFill.style.width=`${(elixir/maxElixir)*100}%`;requestAnimationFrame(loop);}
+function loop(){
+  ctx.clearRect(0,0,900,520);
+  drawMap();
+  if(!paused&&!gameOver){troops.forEach(updateTroop);}
+
+  // REMOVE DEAD TROOPS + TRIGGER DEATH ANIMATION
+  troops = troops.filter(t => {
+    if (t.hp <= 0) { deathAnimations.push({x:t.x, y:t.y, emoji:t.emoji, size:30, alpha:1}); return false; }
+    return true;
+  });
+
+  // REMOVE DEAD TOWERS + DEATH ANIMATION
+  towers = towers.filter(t => {
+    if (t.hp <= 0){
+      deathAnimations.push({x:t.x, y:t.y, emoji:t.emoji, size:t.size||30, alpha:1});
+      if(t.king){
+        gameOver = true;
+        if(t.team==="enemy"){playerScore=3; addCrowns(5);} 
+        else{enemyScore=3; addCrowns(1);}
+        setTimeout(showMenu,2000);
+      } else { t.team==="enemy"?playerScore++:enemyScore++; }
+      scoreDiv.innerText = `👑 ${playerScore} - ${enemyScore}`;
+      return false;
+    }
+    return true;
+  });
+
+  // DRAW TROOPS + TOWERS
+  troops.forEach(drawEntity);
+  towers.forEach(drawEntity);
+
+  // DRAW DEATH ANIMATIONS
+  deathAnimations.forEach((a,i)=>{
+    ctx.save();
+    ctx.globalAlpha = a.alpha;
+    ctx.font = `${a.size}px serif`;
+    ctx.textAlign = "center";
+    ctx.fillText(a.emoji, a.x, a.y+10);
+    ctx.restore();
+    a.alpha -= 0.05; a.size -= 0.5;
+    if(a.alpha <= 0) deathAnimations.splice(i,1);
+  });
+
+  elixirFill.style.width=`${(elixir/maxElixir)*100}%`;
+  requestAnimationFrame(loop);
+}
 loop();
 
 /**********************
