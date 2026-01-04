@@ -79,27 +79,31 @@ Object.keys(baseCards).forEach(c=>{
   UPGRADE SCREEN LOGIC
 **********************/
 function drawUpgradeScreen(){
-  upgradeContainer.innerHTML="";
-  Object.keys(baseCards).forEach(name=>{
-    if(baseCards[name].spell) return;
-    const div=document.createElement("div");
-    div.className="upgradeCard";
-    div.innerHTML=`${baseCards[name].emoji}<br>Lvl ${cardLevels[name]}`;
-    const cost=cardLevels[name]*3;
-    const btn=document.createElement("button");
-    btn.innerText=`Upgrade (${cost} 👑)`;
-    btn.onclick=()=>upgradeCard(name);
+  upgradeContainer.innerHTML = "";
+  Object.keys(baseCards).forEach(name => {
+    if(baseCards[name].spell) return; // skip spells
+    const div = document.createElement("div");
+    div.className = "upgradeCard";
+
+    // Show emoji + full card name + level
+    const displayName = name.charAt(0).toUpperCase() + name.slice(1); // Capitalize first letter
+    div.innerHTML = `${baseCards[name].emoji} ${displayName} Lvl ${cardLevels[name]}`;
+
+    // Upgrade button
+    const cost = cardLevels[name] * 3;
+    const btn = document.createElement("button");
+    btn.innerText = `Upgrade (${cost} 👑)`;
+    btn.onclick = () => upgradeCard(name);
     div.appendChild(btn);
-    const lvlSpan=document.createElement("span");
-    lvlSpan.innerText=`${cardLevels[name]}`;
-    div.appendChild(lvlSpan);
+
     upgradeContainer.appendChild(div);
   });
 }
+
 function upgradeCard(name){
-  const cost=cardLevels[name]*3;
-  if(crowns<cost){alert("Not enough crowns!");return;}
-  crowns-=cost; cardLevels[name]++; 
+  const cost = cardLevels[name]*3;
+  if(crowns < cost){alert("Not enough crowns!"); return;}
+  crowns -= cost; cardLevels[name]++;
   localStorage.setItem("crowns",crowns);
   localStorage.setItem("cardLevels",JSON.stringify(cardLevels));
   addCrowns(0); drawUpgradeScreen();
@@ -160,7 +164,7 @@ canvas.addEventListener("drop",e=>{
   if(card.spell){castSpell(draggedCard,x,y);}
   else{
     const lane=x<450?0:1;const lvl=cardLevels[draggedCard]||1;
-    troops.push({x:lanes[lane].x,y, lane, team:"player",emoji:card.emoji,hp:Math.floor(card.hp*(1+0.1*(lvl-1))), maxHp:Math.floor(card.hp*(1+0.1*(lvl-1))), dmg:Math.floor(card.dmg*(1+0.1*(lvl-1))), speed:card.speed, cooldown:0});
+    troops.push({x:lanes[lane].x,y,lane,team:"player",emoji:card.emoji,hp:Math.floor(card.hp*(1+0.1*(lvl-1))), maxHp:Math.floor(card.hp*(1+0.1*(lvl-1))), dmg:Math.floor(card.dmg*(1+0.1*(lvl-1))), speed:card.speed, cooldown:0});
   }
   deck.push(draggedCard); hand.shift(); hand.push(deck.shift()); drawHand(); draggedCard=null;
 });
