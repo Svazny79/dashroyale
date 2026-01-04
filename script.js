@@ -16,7 +16,7 @@ const scoreDiv = document.getElementById("score");
 const elixirFill = document.getElementById("elixir-fill");
 
 /**********************
-  SCREEN CONTROL
+  MENU BUTTONS
 **********************/
 function showMenu(){
   menu.classList.remove("hidden");
@@ -26,8 +26,8 @@ function showMenu(){
   document.getElementById("set-time-menu").classList.remove("hidden");
   updateCrownsUI();
 }
-function showDeckBuilder(){deckScreen.classList.remove("hidden");menu.classList.add("hidden");}
-function showUpgradeScreen(){upgradeScreen.classList.remove("hidden");menu.classList.add("hidden");drawUpgradeScreen();}
+function showDeckBuilder(){deckScreen.classList.remove("hidden");menu.classList.add("hidden"); renderDeckBuilder();}
+function showUpgradeScreen(){upgradeScreen.classList.remove("hidden");menu.classList.add("hidden"); drawUpgradeScreen();}
 function startGame(){menu.classList.add("hidden");gameScreen.classList.remove("hidden");document.getElementById("set-time-menu").classList.add("hidden");resetGame();}
 
 /**********************
@@ -45,7 +45,7 @@ function setTime(t){timeLeft=t;updateTimerUI();}
 function updateTimerUI(){timerDiv.innerText=`${Math.floor(timeLeft/60)}:${String(timeLeft%60).padStart(2,"0")}`}
 
 /**********************
-  CARD LEVELS
+  CARDS AND LEVELS
 **********************/
 let cardLevels = JSON.parse(localStorage.getItem("cardLevels"))||{};
 const baseCards = {
@@ -57,8 +57,6 @@ const baseCards = {
   skeleton:{emoji:"💀",hp:70,dmg:10,speed:1.8,cost:1},
   fireball:{emoji:"🔥",spell:true,dmg:140,cost:4},
   arrows:{emoji:"🏹",spell:true,dmg:90,cost:3},
-
-  // New cards
   prince:{emoji:"🐎",hp:320,dmg:30,speed:1.4,cost:4},
   miniPekka:{emoji:"🤖",hp:280,dmg:45,speed:1.0,cost:4},
   healer:{emoji:"💉",hp:200,dmg:0,speed:0.8,cost:3},
@@ -76,26 +74,22 @@ Object.keys(baseCards).forEach(c=>{
 });
 
 /**********************
-  UPGRADE SCREEN LOGIC
+  UPGRADE SCREEN
 **********************/
 function drawUpgradeScreen(){
   upgradeContainer.innerHTML = "";
+  upgradeScreen.style.backgroundColor = "#0284c7"; // blue
   Object.keys(baseCards).forEach(name => {
-    if(baseCards[name].spell) return; // skip spells
+    if(baseCards[name].spell) return;
     const div = document.createElement("div");
     div.className = "upgradeCard";
-
-    // Show emoji + full card name + level
-    const displayName = name.charAt(0).toUpperCase() + name.slice(1); // Capitalize first letter
+    const displayName = name.charAt(0).toUpperCase() + name.slice(1);
     div.innerHTML = `${baseCards[name].emoji} ${displayName} Lvl ${cardLevels[name]}`;
-
-    // Upgrade button
-    const cost = cardLevels[name] * 3;
+    const cost = cardLevels[name]*3;
     const btn = document.createElement("button");
     btn.innerText = `Upgrade (${cost} 👑)`;
     btn.onclick = () => upgradeCard(name);
     div.appendChild(btn);
-
     upgradeContainer.appendChild(div);
   });
 }
@@ -110,11 +104,47 @@ function upgradeCard(name){
 }
 
 /**********************
+  DECK BUILDER
+**********************/
+let activeDeck = [];
+function renderDeckBuilder(){
+  const allDiv = document.getElementById("allCards");
+  const deckDiv = document.getElementById("activeDeck");
+  allDiv.innerHTML = ""; deckDiv.innerHTML = "";
+  Object.keys(baseCards).forEach(name=>{
+    if(baseCards[name].spell) return;
+    const c=baseCards[name];
+    const cardDiv = document.createElement("div");
+    cardDiv.innerText = c.emoji+"\n"+name.charAt(0).toUpperCase()+name.slice(1)+"\n("+c.cost+")";
+    cardDiv.style.cursor="pointer";
+    cardDiv.onclick=()=>{
+      if(activeDeck.length<8 && !activeDeck.includes(name)){activeDeck.push(name); renderDeckBuilder();}
+    }
+    allDiv.appendChild(cardDiv);
+  });
+  activeDeck.forEach(name=>{
+    const c=baseCards[name];
+    const div = document.createElement("div");
+    div.innerText = c.emoji+"\n"+name.charAt(0).toUpperCase()+name.slice(1);
+    div.style.cursor="pointer";
+    div.onclick=()=>{
+      activeDeck = activeDeck.filter(n=>n!==name); renderDeckBuilder();
+    }
+    deckDiv.appendChild(div);
+  });
+}
+
+function saveDeck(){
+  if(activeDeck.length!==8){alert("Deck must have 8 cards!"); return;}
+  deck = [...activeDeck]; alert("Deck saved!");
+}
+
+/**********************
   GAME STATE
 **********************/
 let elixir = 10,maxElixir=10,gameOver=false,paused=false,playerScore=0,enemyScore=0;
 const lanes=[{x:260},{x:640}];
-let deck=[], hand=[], troops=[], towers=[], projectiles=[];
+let hand=[], troops=[], towers=[], projectiles=[];
 
 /**********************
   TOWERS
@@ -127,8 +157,11 @@ function resetTowers(){towers=[createTower(260,430,"player"),createTower(640,430
 **********************/
 function resetGame(){
   elixir=10;gameOver=false;paused=false;playerScore=0;enemyScore=0;troops=[];projectiles=[];
-  resetTowers();deck=Object.keys(baseCards).sort(()=>Math.random()-0.5);hand=deck.splice(0,4);drawHand();
-  updateTimerUI();scoreDiv.innerText=`👑 0 - 0`;
+  resetTowers();
+  hand = deck.length>=4 ? deck.slice(0,4) : Object.keys(baseCards).slice(0,4);
+  drawHand();
+  updateTimerUI();
+  scoreDiv.innerText=`👑 0 - 0`;
 }
 
 /**********************
@@ -160,7 +193,6 @@ canvas.addEventListener("drop",e=>{
   const rect=canvas.getBoundingClientRect();
   const x=e.clientX-rect.left;const y=e.clientY-rect.top;if(y<260) return;
   elixir-=card.cost;
-
   if(card.spell){castSpell(draggedCard,x,y);}
   else{
     const lane=x<450?0:1;const lvl=cardLevels[draggedCard]||1;
@@ -191,7 +223,11 @@ setInterval(()=>{
 /**********************
   MAP + DRAW
 **********************/
-function drawMap(){ctx.fillStyle="#14532d";ctx.fillRect(0,0,900,520);ctx.fillStyle="#0284c7";ctx.fillRect(0,240,900,40);ctx.fillStyle="#8b4513";lanes.forEach(l=>{ctx.fillRect(l.x-25,240,50,40);});}
+function drawMap(){
+  ctx.fillStyle="#14532d";ctx.fillRect(0,0,900,520); // battlefield
+  ctx.fillStyle="#0284c7";ctx.fillRect(0,240,900,40); // river
+  ctx.fillStyle="#8b4513";lanes.forEach(l=>{ctx.fillRect(l.x-25,240,50,40);}); // bridges
+}
 function drawEntity(e){ctx.font=`${e.size||30}px serif`;ctx.textAlign="center";ctx.fillText(e.emoji,e.x,e.y+10);ctx.fillStyle=e.team==="player"?"#a855f7":"#ef4444";ctx.fillRect(e.x-25,e.y-(e.size||30),(e.hp/e.maxHp)*50,6);}
 
 /**********************
