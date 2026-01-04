@@ -5,6 +5,7 @@ const menu = document.getElementById("menu");
 const gameScreen = document.getElementById("gameScreen");
 const deckScreen = document.getElementById("deckScreen");
 const upgradeScreen = document.getElementById("upgradeScreen");
+const upgradeContainer = document.getElementById("upgradeContainer");
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
@@ -25,17 +26,15 @@ function showMenu(){
   document.getElementById("set-time-menu").classList.remove("hidden");
   updateCrownsUI();
 }
-
 function showDeckBuilder(){
   deckScreen.classList.remove("hidden");
   menu.classList.add("hidden");
 }
-
 function showUpgradeScreen(){
   upgradeScreen.classList.remove("hidden");
   menu.classList.add("hidden");
+  drawUpgradeScreen();
 }
-
 function startGame(){
   menu.classList.add("hidden");
   gameScreen.classList.remove("hidden");
@@ -60,15 +59,65 @@ function addCrowns(n){
   TIME
 **********************/
 let timeLeft = 180;
+function setTime(t){timeLeft=t;updateTimerUI();}
+function updateTimerUI(){timerDiv.innerText=`${Math.floor(timeLeft/60)}:${String(timeLeft%60).padStart(2,"0")}`}
 
-function setTime(t){
-  timeLeft = t;
-  updateTimerUI();
+/**********************
+  CARD LEVELS
+**********************/
+let cardLevels = JSON.parse(localStorage.getItem("cardLevels"))||{};
+Object.keys({knight:1,archer:1,giant:1,wizard:1,goblin:1,skeleton:1}).forEach(c=>{
+  if(!cardLevels[c]) cardLevels[c] = 1;
+});
+
+/**********************
+  CARDS DATA
+**********************/
+const cards = {
+  knight:{emoji:"🗡️",hp:300,dmg:25,speed:1,cost:3},
+  archer:{emoji:"🏹",hp:170,dmg:18,speed:1.2,cost:2},
+  giant:{emoji:"🗿",hp:650,dmg:35,speed:0.6,cost:5},
+  wizard:{emoji:"🪄",hp:260,dmg:32,speed:0.9,cost:4},
+  goblin:{emoji:"👺",hp:120,dmg:14,speed:1.6,cost:2},
+  skeleton:{emoji:"💀",hp:70,dmg:10,speed:1.8,cost:1},
+  fireball:{emoji:"🔥",spell:true,dmg:140,cost:4},
+  arrows:{emoji:"🏹",spell:true,dmg:90,cost:3}
+};
+
+/**********************
+  UPGRADE SCREEN LOGIC
+**********************/
+function drawUpgradeScreen(){
+  upgradeContainer.innerHTML="";
+  Object.keys(cards).forEach(name=>{
+    if(cards[name].spell) return;
+    const div = document.createElement("div");
+    div.className="upgradeCard";
+    div.innerHTML=`${cards[name].emoji}<br>Lvl ${cardLevels[name]}`;
+    const cost = cardLevels[name]*3;
+    const btn = document.createElement("button");
+    btn.innerText = `Upgrade (${cost} 👑)`;
+    btn.onclick=()=>upgradeCard(name);
+    div.appendChild(btn);
+    const lvlSpan = document.createElement("span");
+    lvlSpan.innerText=`${cardLevels[name]}`;
+    div.appendChild(lvlSpan);
+    upgradeContainer.appendChild(div);
+  });
 }
 
-function updateTimerUI(){
-  timerDiv.innerText =
-    `${Math.floor(timeLeft/60)}:${String(timeLeft%60).padStart(2,"0")}`;
+function upgradeCard(name){
+  const cost = cardLevels[name]*3;
+  if(crowns<cost){
+    alert("Not enough crowns!");
+    return;
+  }
+  crowns-=cost;
+  cardLevels[name]++;
+  localStorage.setItem("crowns",crowns);
+  localStorage.setItem("cardLevels",JSON.stringify(cardLevels));
+  addCrowns(0);
+  drawUpgradeScreen();
 }
 
 /**********************
@@ -83,47 +132,19 @@ let playerScore = 0;
 let enemyScore = 0;
 
 const lanes = [{x:260},{x:640}];
-
-/**********************
-  CARDS
-**********************/
-const cards = {
-  knight:{emoji:"🗡️",hp:300,dmg:25,speed:1,cost:3},
-  archer:{emoji:"🏹",hp:170,dmg:18,speed:1.2,cost:2},
-  giant:{emoji:"🗿",hp:650,dmg:35,speed:0.6,cost:5},
-  wizard:{emoji:"🪄",hp:260,dmg:32,speed:0.9,cost:4},
-  goblin:{emoji:"👺",hp:120,dmg:14,speed:1.6,cost:2},
-  skeleton:{emoji:"💀",hp:70,dmg:10,speed:1.8,cost:1},
-  fireball:{emoji:"🔥",spell:true,dmg:140,cost:4},
-  arrows:{emoji:"🏹",spell:true,dmg:90,cost:3}
-};
-
-let deck = [];
-let hand = [];
-let troops = [];
-let towers = [];
-let projectiles = [];
+let deck=[], hand=[], troops=[], towers=[], projectiles=[];
 
 /**********************
   TOWERS
 **********************/
 function createTower(x,y,team,king=false){
-  return {
-    x,y,team,king,
-    size: king ? 56 : 48,
-    hp: king ? 1800 : 1000,
-    maxHp: king ? 1800 : 1000,
-    emoji: king ? "👑" : "🏰",
-    cooldown: 0
-  };
+  return {x,y,team,king,size: king?56:48,hp: king?1800:1000,maxHp: king?1800:1000,emoji: king?"👑":"🏰",cooldown:0};
 }
-
 function resetTowers(){
-  towers = [
+  towers=[
     createTower(260,430,"player"),
     createTower(640,430,"player"),
     createTower(450,490,"player",true),
-
     createTower(260,70,"enemy"),
     createTower(640,70,"enemy"),
     createTower(450,20,"enemy",true)
@@ -134,37 +155,28 @@ function resetTowers(){
   RESET GAME
 **********************/
 function resetGame(){
-  elixir = 10;
-  gameOver = false;
-  paused = false;
-  playerScore = 0;
-  enemyScore = 0;
-  troops = [];
-  projectiles = [];
-
+  elixir=10;gameOver=false;paused=false;
+  playerScore=0;enemyScore=0;troops=[];projectiles=[];
   resetTowers();
-
-  deck = Object.keys(cards).sort(()=>Math.random()-0.5);
-  hand = deck.splice(0,4);
-  drawHand();
-
+  deck=Object.keys(cards).sort(()=>Math.random()-0.5);
+  hand=deck.splice(0,4);drawHand();
   updateTimerUI();
-  scoreDiv.innerText = "👑 0 - 0";
+  scoreDiv.innerText=`👑 0 - 0`;
 }
 
 /**********************
   HAND UI
 **********************/
 function drawHand(){
-  cardsDiv.innerHTML = "";
+  cardsDiv.innerHTML="";
   hand.forEach(cardName=>{
-    const c = cards[cardName];
-    const div = document.createElement("div");
-    div.className = "card";
-    if(elixir >= c.cost) div.classList.add("ready");
-    div.draggable = true;
-    div.dataset.card = cardName;
-    div.innerHTML = `${c.emoji}<br>${c.cost}`;
+    const c=cards[cardName];
+    const div=document.createElement("div");
+    div.className="card";
+    if(elixir>=c.cost) div.classList.add("ready");
+    div.draggable=true;
+    div.dataset.card=cardName;
+    div.innerHTML=`${c.emoji}<br>${c.cost}`;
     cardsDiv.appendChild(div);
   });
 }
@@ -172,53 +184,40 @@ function drawHand(){
 /**********************
   DRAG & DROP
 **********************/
-let draggedCard = null;
-
-cardsDiv.addEventListener("dragstart",e=>{
-  draggedCard = e.target.dataset.card;
-});
-
+let draggedCard=null;
+cardsDiv.addEventListener("dragstart",e=>{draggedCard=e.target.dataset.card;});
 canvas.addEventListener("dragover",e=>e.preventDefault());
-
 canvas.addEventListener("drop",e=>{
-  if(gameOver || paused) return;
+  if(gameOver||paused) return;
   e.preventDefault();
   if(!draggedCard) return;
+  const card=cards[draggedCard];
+  if(elixir<card.cost) return;
+  const rect=canvas.getBoundingClientRect();
+  const x=e.clientX-rect.left;
+  const y=e.clientY-rect.top;
+  if(y<260) return;
+  elixir-=card.cost;
 
-  const card = cards[draggedCard];
-  if(elixir < card.cost) return;
-
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
-
-  if(y < 260) return;
-
-  elixir -= card.cost;
-
-  if(card.spell){
-    castSpell(draggedCard,x,y);
-  } else {
-    const lane = x < 450 ? 0 : 1;
+  if(card.spell){castSpell(draggedCard,x,y);}
+  else{
+    const lane = x<450?0:1;
+    const lvl = cardLevels[draggedCard]||1;
     troops.push({
       x: lanes[lane].x,
       y,
       lane,
       team:"player",
       emoji: card.emoji,
-      hp: card.hp,
-      maxHp: card.hp,
-      dmg: card.dmg,
+      hp: Math.floor(card.hp*(1+0.1*(lvl-1))),
+      maxHp: Math.floor(card.hp*(1+0.1*(lvl-1))),
+      dmg: Math.floor(card.dmg*(1+0.1*(lvl-1))),
       speed: card.speed,
-      cooldown: 0
+      cooldown:0
     });
   }
 
-  deck.push(draggedCard);
-  hand.shift();
-  hand.push(deck.shift());
-  drawHand();
-  draggedCard = null;
+  deck.push(draggedCard); hand.shift(); hand.push(deck.shift()); drawHand(); draggedCard=null;
 });
 
 /**********************
@@ -226,14 +225,10 @@ canvas.addEventListener("drop",e=>{
 **********************/
 function castSpell(type,x,y){
   troops.forEach(t=>{
-    if(t.team==="enemy" && Math.hypot(t.x-x,t.y-y)<70){
-      t.hp -= cards[type].dmg;
-    }
+    if(t.team==="enemy" && Math.hypot(t.x-x,t.y-y)<70) t.hp-=cards[type].dmg;
   });
   towers.forEach(t=>{
-    if(t.team==="enemy" && Math.hypot(t.x-x,t.y-y)<80){
-      t.hp -= cards[type].dmg;
-    }
+    if(t.team==="enemy" && Math.hypot(t.x-x,t.y-y)<80) t.hp-=cards[type].dmg;
   });
 }
 
@@ -241,138 +236,88 @@ function castSpell(type,x,y){
   ENEMY AI
 **********************/
 setInterval(()=>{
-  if(gameOver || paused) return;
-  const pool = Object.keys(cards).filter(c=>!cards[c].spell);
-  const name = pool[Math.floor(Math.random()*pool.length)];
-  const lane = Math.random()<0.5 ? 0 : 1;
-
+  if(gameOver||paused) return;
+  const pool=Object.keys(cards).filter(c=>!cards[c].spell);
+  const name=pool[Math.floor(Math.random()*pool.length)];
+  const lane=Math.random()<0.5?0:1;
+  const lvl=cardLevels[name]||1;
   troops.push({
     x: lanes[lane].x,
-    y: 120,
+    y:120,
     lane,
     team:"enemy",
     emoji: cards[name].emoji,
-    hp: cards[name].hp,
-    maxHp: cards[name].hp,
-    dmg: cards[name].dmg,
+    hp: Math.floor(cards[name].hp*(1+0.1*(lvl-1))),
+    maxHp: Math.floor(cards[name].hp*(1+0.1*(lvl-1))),
+    dmg: Math.floor(cards[name].dmg*(1+0.1*(lvl-1))),
     speed: cards[name].speed,
-    cooldown: 0
+    cooldown:0
   });
-}, 3500);
+},3500);
 
 /**********************
-  MAP
+  MAP + DRAW
 **********************/
 function drawMap(){
-  ctx.fillStyle="#14532d";
-  ctx.fillRect(0,0,900,520);
-
-  ctx.fillStyle="#0284c7";
-  ctx.fillRect(0,240,900,40);
-
-  ctx.fillStyle="#8b4513";
-  lanes.forEach(l=>{
-    ctx.fillRect(l.x-25,240,50,40);
-  });
+  ctx.fillStyle="#14532d"; ctx.fillRect(0,0,900,520);
+  ctx.fillStyle="#0284c7"; ctx.fillRect(0,240,900,40);
+  ctx.fillStyle="#8b4513"; lanes.forEach(l=>{ctx.fillRect(l.x-25,240,50,40);});
 }
-
-/**********************
-  DRAW ENTITY
-**********************/
 function drawEntity(e){
-  ctx.font=`${e.size||30}px serif`;
-  ctx.textAlign="center";
+  ctx.font=`${e.size||30}px serif`; ctx.textAlign="center";
   ctx.fillText(e.emoji,e.x,e.y+10);
-
-  ctx.fillStyle = e.team==="player" ? "#a855f7" : "#ef4444";
-  ctx.fillRect(e.x-25, e.y-(e.size||30), (e.hp/e.maxHp)*50, 6);
+  ctx.fillStyle=e.team==="player"?"#a855f7":"#ef4444";
+  ctx.fillRect(e.x-25,e.y-(e.size||30),(e.hp/e.maxHp)*50,6);
 }
 
 /**********************
   UPDATE LOGIC
 **********************/
 function updateTroop(t){
-  const enemies = [
-    ...troops.filter(o=>o.team!==t.team && o.lane===t.lane),
-    ...towers.filter(o=>o.team!==t.team)
-  ];
-  if(!enemies.length){
-    t.y += t.team==="player" ? -t.speed : t.speed;
-    return;
-  }
-
-  const target = enemies[0];
-  const dist = Math.hypot(t.x-target.x,t.y-target.y);
-
-  if(dist < 36){
-    if(t.cooldown<=0){
-      target.hp -= t.dmg;
-      t.cooldown = 30;
-    }
-  } else {
-    const a = Math.atan2(target.y-t.y,target.x-t.x);
-    t.x += Math.cos(a)*t.speed;
-    t.y += Math.sin(a)*t.speed;
-  }
+  const enemies=[...troops.filter(o=>o.team!==t.team && o.lane===t.lane),...towers.filter(o=>o.team!==t.team)];
+  if(!enemies.length){t.y+=t.team==="player"?-t.speed:t.speed; return;}
+  const target=enemies[0];
+  const dist=Math.hypot(t.x-target.x,t.y-target.y);
+  if(dist<36 && t.cooldown<=0){ target.hp-=t.dmg; t.cooldown=30; } 
+  else{const a=Math.atan2(target.y-t.y,target.x-t.x); t.x+=Math.cos(a)*t.speed; t.y+=Math.sin(a)*t.speed; }
   t.cooldown--;
 }
 
 /**********************
-  GAME LOOP
+  LOOP
 **********************/
 function loop(){
   ctx.clearRect(0,0,900,520);
   drawMap();
-
-  if(!paused && !gameOver){
-    troops.forEach(updateTroop);
-  }
-
-  troops = troops.filter(t=>t.hp>0);
-  towers = towers.filter(t=>{
+  if(!paused && !gameOver){troops.forEach(updateTroop);}
+  troops=troops.filter(t=>t.hp>0);
+  towers=towers.filter(t=>{
     if(t.hp<=0){
-      if(t.king){
-        gameOver = true;
-        if(t.team==="enemy"){ playerScore=3; addCrowns(5); }
-        else { enemyScore=3; addCrowns(1); }
-        setTimeout(showMenu,2000);
-      } else {
-        t.team==="enemy" ? playerScore++ : enemyScore++;
-      }
-      scoreDiv.innerText = `👑 ${playerScore} - ${enemyScore}`;
+      if(t.king){gameOver=true;if(t.team==="enemy"){playerScore=3;addCrowns(5);}else{enemyScore=3;addCrowns(1);}setTimeout(showMenu,2000);}
+      else{t.team==="enemy"?playerScore++:enemyScore++;}
+      scoreDiv.innerText=`👑 ${playerScore} - ${enemyScore}`;
       return false;
-    }
-    return true;
+    } return true;
   });
-
-  troops.forEach(drawEntity);
-  towers.forEach(drawEntity);
-
-  elixirFill.style.width = `${(elixir/maxElixir)*100}%`;
-
+  troops.forEach(drawEntity); towers.forEach(drawEntity);
+  elixirFill.style.width=`${(elixir/maxElixir)*100}%`;
   requestAnimationFrame(loop);
 }
 loop();
 
 /**********************
-  TIMERS
+  TIMERS + ELIXIR
 **********************/
-setInterval(()=>{
-  if(!paused && !gameOver && elixir < maxElixir){
-    elixir++;
-    drawHand();
-  }
-},1000);
+setInterval(()=>{if(!paused&&!gameOver&&elixir<maxElixir){elixir++;drawHand();}},1000);
+setInterval(()=>{if(!paused&&!gameOver&&timeLeft>0){timeLeft--;updateTimerUI();}},1000);
 
-setInterval(()=>{
-  if(!paused && !gameOver && timeLeft>0){
-    timeLeft--;
-    updateTimerUI();
-  }
-},1000);
+/**********************
+  PAUSE / RESTART
+**********************/
+function pauseGame(){paused=!paused;}
+function restartGame(){resetGame();gameOver=false;paused=false;}
 
 /**********************
   START
 **********************/
-updateCrownsUI();
-showMenu();
+updateCrownsUI(); showMenu();
