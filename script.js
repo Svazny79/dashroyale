@@ -88,17 +88,49 @@ if(deck.length===0){
 **********************/
 function drawUpgradeScreen(){
   upgradeContainer.innerHTML = "";
-  upgradeScreen.style.backgroundColor = "#0284c7"; // blue
+  upgradeScreen.style.backgroundColor = "#0284c7"; // blue background
   Object.keys(baseCards).forEach(name => {
-    if(baseCards[name].spell) return;
+    if(baseCards[name].spell) return; // skip spells
     const div = document.createElement("div");
     div.className = "upgradeCard";
-    const displayName = name.charAt(0).toUpperCase() + name.slice(1);
-    div.innerHTML = `${baseCards[name].emoji} ${displayName} Lvl ${cardLevels[name]}`;
+    div.style.display = "flex";
+    div.style.flexDirection = "column";
+    div.style.justifyContent = "center";
+    div.style.alignItems = "center";
+    div.style.width = "100px";
+    div.style.height = "100px";
+    div.style.border = "2px solid #fff";
+    div.style.borderRadius = "8px";
+    div.style.margin = "5px";
+    div.style.backgroundColor = "#1e40af";
+    div.style.color = "#fff";
+    div.style.textAlign = "center";
+    div.style.padding = "5px";
+    div.style.boxSizing = "border-box";
+
+    const emojiLine = document.createElement("div");
+    emojiLine.style.fontSize = "28px";
+    emojiLine.innerText = baseCards[name].emoji;
+
+    const nameLine = document.createElement("div");
+    nameLine.style.fontSize = "14px";
+    nameLine.style.fontWeight = "bold";
+    nameLine.innerText = name.charAt(0).toUpperCase() + name.slice(1);
+
+    const levelLine = document.createElement("div");
+    levelLine.style.fontSize = "12px";
+    levelLine.innerText = `Lvl ${cardLevels[name]}`;
+
+    div.appendChild(emojiLine);
+    div.appendChild(nameLine);
+    div.appendChild(levelLine);
+
     const cost = cardLevels[name]*3;
     const btn = document.createElement("button");
     btn.innerText = `Upgrade (${cost} 👑)`;
+    btn.style.marginTop = "5px";
     btn.onclick = () => upgradeCard(name);
+
     div.appendChild(btn);
     upgradeContainer.appendChild(div);
   });
@@ -126,6 +158,7 @@ function renderDeckBuilder(){
     const cardDiv = document.createElement("div");
     cardDiv.innerText = c.emoji+"\n"+name.charAt(0).toUpperCase()+name.slice(1)+"\n("+c.cost+")";
     cardDiv.style.cursor="pointer";
+    cardDiv.style.width="60px"; cardDiv.style.height="80px"; cardDiv.style.border="1px solid #fff"; cardDiv.style.margin="2px"; cardDiv.style.textAlign="center";
     cardDiv.onclick=()=>{
       if(activeDeck.length<8 && !activeDeck.includes(name)){activeDeck.push(name); renderDeckBuilder();}
     }
@@ -136,6 +169,7 @@ function renderDeckBuilder(){
     const div = document.createElement("div");
     div.innerText = c.emoji+"\n"+name.charAt(0).toUpperCase()+name.slice(1);
     div.style.cursor="pointer";
+    div.style.width="60px"; div.style.height="80px"; div.style.border="1px solid #fff"; div.style.margin="2px"; div.style.textAlign="center";
     div.onclick=()=>{
       activeDeck = activeDeck.filter(n=>n!==name); renderDeckBuilder();
     }
@@ -188,7 +222,7 @@ function drawHand(){
     if(elixir>=c.cost) div.classList.add("ready");
     div.draggable=true;
     div.dataset.card=cardName;
-    div.innerHTML=`${c.emoji}<br>${c.cost}`;
+    div.innerHTML=`${c.emoji}<br>${cardName.charAt(0).toUpperCase()+cardName.slice(1)}<br>${c.cost}`;
     cardsDiv.appendChild(div);
   });
 }
