@@ -12,9 +12,10 @@ let playerCrowns = 0;
 let enemyCrowns = 0;
 
 /* ===== LANES ===== */
+// Two lanes with bridges: top and bottom
 const lanes = {
-  top: 150,
-  bottom: 300
+  top: { x: 200, y: 230 },    // bridge 1
+  bottom: { x: 650, y: 230 }  // bridge 2
 };
 
 /* ===== CARDS ===== */
@@ -25,12 +26,10 @@ const cards = {
   wizard:   { emoji:"🪄", hp:220, dmg:28, speed:0.9, cost:4 },
   goblin:   { emoji:"👺", hp:100, dmg:12, speed:1.6, cost:2 },
   pekka:    { emoji:"🤖", hp:420, dmg:45, speed:0.7, cost:4 },
-
   minipekka:{ emoji:"⚔️", hp:280, dmg:55, speed:1.1, cost:4 },
   bomber:   { emoji:"💣", hp:180, dmg:40, speed:0.9, cost:3 },
   skeleton: { emoji:"💀", hp:60,  dmg:10, speed:1.8, cost:1 },
   hog:      { emoji:"🐗", hp:300, dmg:32, speed:1.6, cost:4 },
-
   fireball: { emoji:"🔥", spell:true, cost:4, damage:120 },
   arrows:   { emoji:"🏹", spell:true, cost:3, damage:80 }
 };
@@ -50,16 +49,16 @@ function createTower(x, y, team, king=false) {
 
 /* Player Towers */
 towers.push(
-  createTower(200, 350, "player"),
-  createTower(650, 350, "player"),
-  createTower(425, 400, "player", true)
+  createTower(200, 400, "player"),
+  createTower(650, 400, "player"),
+  createTower(425, 450, "player", true)
 );
 
 /* Enemy Towers */
 towers.push(
-  createTower(200, 150, "enemy"),
-  createTower(650, 150, "enemy"),
-  createTower(425, 100, "enemy", true)
+  createTower(200, 100, "enemy"),
+  createTower(650, 100, "enemy"),
+  createTower(425, 50, "enemy", true)
 );
 
 /* ===== UI ===== */
@@ -110,11 +109,11 @@ function placeCard(card, lane) {
   elixir -= cards[card].cost;
 
   if (cards[card].spell) {
-    troops.push({ spell:true, x:450, y:lanes[lane], damage:cards[card].damage, team:"player" });
+    troops.push({ spell:true, x:450, y:lanes[lane].y, damage:cards[card].damage, team:"player" });
   } else {
     troops.push({
-      x: card === "hog"?450:450,
-      y: lanes[lane],
+      x: lanes[lane].x,
+      y: lanes[lane].y + (cards[card].team==="player"?150:-150),
       lane,
       team: "player",
       emoji: cards[card].emoji,
@@ -139,8 +138,8 @@ setInterval(()=>{
   const card = choices[Math.floor(Math.random()*choices.length)];
   const lane = Math.random()<0.5?"top":"bottom";
   troops.push({
-    x:450,
-    y:lanes[lane],
+    x: lanes[lane].x,
+    y: lanes[lane].y - 150,
     lane,
     team:"enemy",
     emoji:cards[card].emoji,
@@ -159,8 +158,8 @@ function drawRiver() {
   ctx.fillRect(0, 230, 900, 40);
   // Two vertical brown bridges
   ctx.fillStyle="#8b4513";
-  ctx.fillRect(200, 230, 40, 40);
-  ctx.fillRect(650, 230, 40, 40);
+  ctx.fillRect(lanes.top.x, 230, 40, 40);
+  ctx.fillRect(lanes.bottom.x, 230, 40, 40);
 }
 
 /* ===== DRAW ENTITY ===== */
@@ -180,20 +179,24 @@ function updateTroop(t){
     t.hp=0; return;
   }
 
+  // Determine target: nearest enemy troop or tower in lane
   const targets=[...troops.filter(o=>o.team!==t.team && o.lane===t.lane),
                  ...towers.filter(o=>o.team!==t.team && Math.abs(o.x-t.x)<50)];
 
   if(targets.length===0){
-    t.x += t.team==="player"?0:0;
-    t.y += t.team==="player"?-t.speed:t.speed;
+    // Move along bridge path
+    const bridgeX = lanes[t.lane].x + 20; // center of bridge
+    if(Math.abs(t.x - bridgeX)>1) t.x += t.x<bridgeX?t.speed:-t.speed;
+    else t.y += t.team==="player"?-t.speed:t.speed;
     return;
   }
 
+  // Move toward target
   const target = targets[0];
   const dist = Math.hypot(t.x-target.x, t.y-target.y);
 
   if(dist<25){
-    if(t.cooldown<=0){ target.hp -= t.dmg; t.cooldown=30; }
+    if(t.cooldown<=0){ target.hp-=t.dmg; t.cooldown=30; }
   } else {
     const angle=Math.atan2(target.y-t.y,target.x-t.x);
     t.x+=Math.cos(angle)*t.speed;
