@@ -1,7 +1,7 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-/* ===== STATE ===== */
+/* ===== GAME STATE ===== */
 let timeLeft = 180;
 let overtime = false;
 let elixir = 10;
@@ -10,43 +10,54 @@ const maxElixir = 10;
 let playerCrowns = 0;
 let enemyCrowns = 0;
 
-/* ===== LANES / BRIDGES ===== */
-const lanes = {
-  top: { x: 240, y: 250 },
-  bottom: { x: 640, y: 250 }
-};
+/* ===== LANES ===== */
+const lanes = [
+  { x: 260 },
+  { x: 640 }
+];
 
 /* ===== CARDS ===== */
 const cards = {
-  knight:{emoji:"🗡️",hp:260,dmg:22,speed:1,cost:3},
-  archer:{emoji:"🏹",hp:150,dmg:15,speed:1.2,cost:2},
-  giant:{emoji:"🗿",hp:520,dmg:30,speed:0.6,cost:5},
-  wizard:{emoji:"🪄",hp:220,dmg:28,speed:0.9,cost:4},
-  goblin:{emoji:"👺",hp:100,dmg:12,speed:1.6,cost:2},
-  pekka:{emoji:"🤖",hp:420,dmg:45,speed:0.7,cost:4},
-  skeleton:{emoji:"💀",hp:60,dmg:10,speed:1.8,cost:1}
+  knight:{emoji:"🗡️",hp:300,dmg:25,speed:1,cost:3},
+  archer:{emoji:"🏹",hp:170,dmg:18,speed:1.2,cost:2},
+  giant:{emoji:"🗿",hp:650,dmg:35,speed:0.6,cost:5},
+  wizard:{emoji:"🪄",hp:260,dmg:32,speed:0.9,cost:4},
+  goblin:{emoji:"👺",hp:120,dmg:14,speed:1.6,cost:2},
+  pekka:{emoji:"🤖",hp:520,dmg:55,speed:0.7,cost:4},
+  skeleton:{emoji:"💀",hp:70,dmg:10,speed:1.8,cost:1},
+  fireball:{emoji:"🔥",spell:true,dmg:140,cost:4},
+  arrows:{emoji:"🏹",spell:true,dmg:90,cost:3}
 };
 
 /* ===== DECK ===== */
-let deck = Object.keys(cards).sort(() => Math.random() - 0.5);
+let deck = Object.keys(cards).sort(()=>Math.random()-0.5);
 let hand = deck.splice(0,4);
 
 /* ===== ENTITIES ===== */
 let troops = [];
+let projectiles = [];
 let towers = [];
 
-/* ===== TOWERS ===== */
-function tower(x,y,team,king=false){
-  return {x,y,team,king,hp:king?1200:600,maxHp:king?1200:600,emoji:king?"👑":"🏰"};
+/* ===== TOWERS (BIGGER) ===== */
+function createTower(x,y,team,king=false){
+  return {
+    x,y,team,king,
+    size: king?46:38,
+    hp: king?1600:900,
+    maxHp: king?1600:900,
+    cooldown:0,
+    emoji: king?"👑":"🏰"
+  };
 }
 
 towers.push(
-  tower(240,420,"player"),
-  tower(640,420,"player"),
-  tower(440,470,"player",true),
-  tower(240,80,"enemy"),
-  tower(640,80,"enemy"),
-  tower(440,30,"enemy",true)
+  createTower(260,430,"player"),
+  createTower(640,430,"player"),
+  createTower(450,480,"player",true),
+
+  createTower(260,70,"enemy"),
+  createTower(640,70,"enemy"),
+  createTower(450,20,"enemy",true)
 );
 
 /* ===== UI ===== */
@@ -58,6 +69,7 @@ function drawHand(){
   hand.forEach(c=>{
     const d=document.createElement("div");
     d.className="card";
+    if(elixir>=cards[c].cost) d.classList.add("ready");
     d.draggable=true;
     d.dataset.card=c;
     d.innerHTML=`${cards[c].emoji}<br>${cards[c].cost}`;
@@ -66,62 +78,74 @@ function drawHand(){
 }
 drawHand();
 
-/* ===== DRAG & DROP ===== */
-let draggedCard = null;
-
-cardsDiv.addEventListener("dragstart", e=>{
-  if(!e.target.dataset.card) return;
-  draggedCard = e.target.dataset.card;
+/* ===== DRAG ===== */
+let dragged=null;
+cardsDiv.addEventListener("dragstart",e=>{
+  dragged=e.target.dataset.card;
 });
-
-canvas.addEventListener("dragover", e=>e.preventDefault());
-
-canvas.addEventListener("drop", e=>{
+canvas.addEventListener("dragover",e=>e.preventDefault());
+canvas.addEventListener("drop",e=>{
   e.preventDefault();
-  if(!draggedCard) return;
+  if(!dragged) return;
 
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
+  const rect=canvas.getBoundingClientRect();
+  const x=e.clientX-rect.left;
+  const y=e.clientY-rect.top;
+  if(y<260) return;
 
-  // Player side only
-  if(y < 260) return;
+  const card=cards[dragged];
+  if(elixir<card.cost) return;
+  elixir-=card.cost;
 
-  // Determine lane
-  const lane = x < 440 ? "top" : "bottom";
+  if(card.spell){
+    castSpell(dragged,x,y);
+  }else{
+    const lane = x<450?0:1;
+    troops.push({
+      x:lanes[lane].x,
+      y:y,
+      lane,
+      team:"player",
+      emoji:card.emoji,
+      hp:card.hp,
+      maxHp:card.hp,
+      dmg:card.dmg,
+      speed:card.speed,
+      cooldown:0,
+      walk:0
+    });
+  }
 
-  if(elixir < cards[draggedCard].cost) return;
-
-  elixir -= cards[draggedCard].cost;
-
-  troops.push({
-    x: lanes[lane].x,
-    y: lanes[lane].y + 140,
-    lane,
-    team:"player",
-    emoji:cards[draggedCard].emoji,
-    hp:cards[draggedCard].hp,
-    maxHp:cards[draggedCard].hp,
-    dmg:cards[draggedCard].dmg,
-    speed:cards[draggedCard].speed,
-    cooldown:0
-  });
-
-  deck.push(draggedCard);
+  deck.push(dragged);
   hand.shift();
   hand.push(deck.shift());
   drawHand();
-  draggedCard=null;
+  dragged=null;
 });
+
+/* ===== SPELLS ===== */
+function castSpell(type,x,y){
+  troops.forEach(t=>{
+    if(Math.hypot(t.x-x,t.y-y)<60 && t.team==="enemy"){
+      t.hp-=cards[type].dmg;
+    }
+  });
+  towers.forEach(t=>{
+    if(Math.hypot(t.x-x,t.y-y)<70 && t.team==="enemy"){
+      t.hp-=cards[type].dmg;
+    }
+  });
+}
 
 /* ===== ENEMY AI ===== */
 setInterval(()=>{
-  const choices=Object.keys(cards);
-  const c=choices[Math.floor(Math.random()*choices.length)];
-  const lane=Math.random()<0.5?"top":"bottom";
+  const pool=Object.keys(cards).filter(c=>!cards[c].spell);
+  const c=pool[Math.floor(Math.random()*pool.length)];
+  const lane=Math.random()<0.5?0:1;
+
   troops.push({
     x:lanes[lane].x,
-    y:lanes[lane].y-140,
+    y:120,
     lane,
     team:"enemy",
     emoji:cards[c].emoji,
@@ -129,55 +153,59 @@ setInterval(()=>{
     maxHp:cards[c].hp,
     dmg:cards[c].dmg,
     speed:cards[c].speed,
-    cooldown:0
+    cooldown:0,
+    walk:0
   });
 },3500);
 
-/* ===== DRAW MAP ===== */
+/* ===== MAP ===== */
 function drawMap(){
   ctx.fillStyle="#14532d";
-  ctx.fillRect(0,0,900,500);
+  ctx.fillRect(0,0,900,520);
 
-  // River
   ctx.fillStyle="#0284c7";
-  ctx.fillRect(0,230,900,40);
+  ctx.fillRect(0,240,900,40);
 
-  // Bridges (vertical)
   ctx.fillStyle="#8b4513";
-  ctx.fillRect(lanes.top.x-20,230,40,40);
-  ctx.fillRect(lanes.bottom.x-20,230,40,40);
+  lanes.forEach(l=>{
+    ctx.fillRect(l.x-25,240,50,40);
+  });
 }
 
 /* ===== DRAW ENTITY ===== */
-function draw(e){
-  ctx.font="24px serif";
+function drawEntity(e){
+  ctx.font=`${e.size||26}px serif`;
   ctx.textAlign="center";
-  ctx.fillText(e.emoji,e.x,e.y+8);
+  ctx.fillText(e.emoji,e.x,e.y+10);
+
   ctx.fillStyle=e.team==="player"?"#a855f7":"#ef4444";
-  ctx.fillRect(e.x-15,e.y-22,(e.hp/e.maxHp)*30,4);
+  ctx.fillRect(e.x-20,e.y-(e.size||26),(e.hp/e.maxHp)*40,5);
 }
 
-/* ===== UPDATE TROOP ===== */
-function update(t){
+/* ===== PROJECTILES ===== */
+function shoot(from,to){
+  projectiles.push({
+    x:from.x,y:from.y,
+    tx:to.x,ty:to.y,
+    team:from.team,
+    dmg:45
+  });
+}
+
+/* ===== UPDATE ===== */
+function updateTroop(t){
+  t.walk+=0.1;
   const enemies=[
     ...troops.filter(o=>o.team!==t.team && o.lane===t.lane),
     ...towers.filter(o=>o.team!==t.team)
   ];
-
   if(!enemies.length){
-    const bridgeX=lanes[t.lane].x;
-    if(Math.abs(t.x-bridgeX)>1){
-      t.x+=t.x<bridgeX?t.speed:-t.speed;
-    }else{
-      t.y+=t.team==="player"?-t.speed:t.speed;
-    }
+    t.y+=t.team==="player"?-t.speed:t.speed;
     return;
   }
-
   const target=enemies[0];
   const d=Math.hypot(t.x-target.x,t.y-target.y);
-
-  if(d<26){
+  if(d<34){
     if(t.cooldown<=0){
       target.hp-=t.dmg;
       t.cooldown=30;
@@ -187,18 +215,39 @@ function update(t){
     t.x+=Math.cos(a)*t.speed;
     t.y+=Math.sin(a)*t.speed;
   }
-
   t.cooldown--;
+}
+
+/* ===== TOWER ATTACK ===== */
+function updateTower(t){
+  if(t.cooldown>0){t.cooldown--;return;}
+  const targets=troops.filter(o=>o.team!==t.team);
+  if(!targets.length) return;
+  const target=targets[0];
+  shoot(t,target);
+  t.cooldown=45;
 }
 
 /* ===== LOOP ===== */
 function loop(){
-  ctx.clearRect(0,0,900,500);
+  ctx.clearRect(0,0,900,520);
   drawMap();
 
-  towers.forEach(draw);
-  troops.forEach(draw);
-  troops.forEach(update);
+  towers.forEach(updateTower);
+  troops.forEach(updateTroop);
+
+  projectiles.forEach(p=>{
+    const a=Math.atan2(p.ty-p.y,p.tx-p.x);
+    p.x+=Math.cos(a)*6;
+    p.y+=Math.sin(a)*6;
+    ctx.fillStyle="#fff";
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,3,0,Math.PI*2);
+    ctx.fill();
+  });
+
+  troops.forEach(drawEntity);
+  towers.forEach(drawEntity);
 
   troops=troops.filter(t=>t.hp>0);
   towers=towers.filter(t=>{
@@ -220,6 +269,7 @@ loop();
 /* ===== TIMERS ===== */
 setInterval(()=>{
   if(elixir<maxElixir) elixir+=overtime?2:1;
+  drawHand();
 },1000);
 
 setInterval(()=>{
@@ -227,5 +277,5 @@ setInterval(()=>{
   else overtime=true;
   document.getElementById("timer").innerText=
     overtime?"OVERTIME":
-    `Time ${Math.floor(timeLeft/60)}:${String(timeLeft%60).padStart(2,"0")}`;
+    `${Math.floor(timeLeft/60)}:${String(timeLeft%60).padStart(2,"0")}`;
 },1000);
