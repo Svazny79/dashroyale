@@ -1,6 +1,11 @@
-/*************************
+/*
+  Full replacement for Dash Royale
+  Includes: King Tower win, timer, drag/drop, towers, arenas, upgrades, deck builder
+*/
+
+/*********************
   SAVE / LOAD
-*************************/
+*********************/
 let crowns = Number(localStorage.getItem("crowns")) || 0;
 let currentArena = Number(localStorage.getItem("arena")) || 1;
 let deck = JSON.parse(localStorage.getItem("deck")) || ["knight","archer","giant","goblin"];
@@ -14,21 +19,9 @@ function save(){
   localStorage.setItem("levels",JSON.stringify(levels));
 }
 
-/*************************
-  ARENAS
-*************************/
-const arenas = [
-  {id:1,name:"Goblin Stadium",need:0,color:"#3bb273",
-   cards:["knight","archer","goblin","skeleton","giant"]},
-  {id:2,name:"Bone Pit",need:50,color:"#9ca3af",
-   cards:["knight","archer","goblin","skeleton","giant","wizard","prince"]},
-  {id:3,name:"Barbarian Bowl",need:120,color:"#d97706",
-   cards:["knight","archer","goblin","skeleton","giant","wizard","prince","miniPekka","balloon"]}
-];
-
-/*************************
-  CARDS
-*************************/
+/*********************
+  CARDS & LEVELS
+*********************/
 const cards = {
   knight:{emoji:"🗡️",cost:3,hp:120,dmg:15,speed:0.6},
   archer:{emoji:"🏹",cost:2,hp:70,dmg:10,speed:0.7},
@@ -40,12 +33,23 @@ const cards = {
   miniPekka:{emoji:"🤖",cost:4,hp:140,dmg:35,speed:0.7},
   balloon:{emoji:"🎈",cost:5,hp:200,dmg:40,speed:0.5}
 };
-
 Object.keys(cards).forEach(c=>levels[c]=levels[c]||1);
 
-/*************************
-  UI NAV
-*************************/
+/*********************
+  ARENAS
+*********************/
+const arenas = [
+  {id:1,name:"Goblin Stadium",need:0,color:"#3bb273",
+   cards:["knight","archer","goblin","skeleton","giant"]},
+  {id:2,name:"Bone Pit",need:50,color:"#9ca3af",
+   cards:["knight","archer","goblin","skeleton","giant","wizard","prince"]},
+  {id:3,name:"Barbarian Bowl",need:120,color:"#d97706",
+   cards:["knight","archer","goblin","skeleton","giant","wizard","prince","miniPekka","balloon"]}
+];
+
+/*********************
+  UI NAVIGATION
+*********************/
 function hideAll(){
   menu.classList.add("hidden");
   gameScreen.classList.add("hidden");
@@ -59,9 +63,6 @@ function goMenu(){
   drawArenas();
 }
 
-/*************************
-  ARENA UI
-*************************/
 function drawArenas(){
   arenaContainer.innerHTML="";
   arenas.forEach(a=>{
@@ -81,9 +82,9 @@ function drawArenas(){
   });
 }
 
-/*************************
+/*********************
   DECK BUILDER
-*************************/
+*********************/
 function openDeck(){
   hideAll();
   deckScreen.classList.remove("hidden");
@@ -117,9 +118,9 @@ function drawDeckCard(name,inDeck){
   (inDeck?activeDeck:allCards).appendChild(d);
 }
 
-/*************************
+/*********************
   UPGRADES
-*************************/
+*********************/
 function openUpgrades(){
   hideAll();
   upgradeScreen.classList.remove("hidden");
@@ -142,29 +143,27 @@ function drawUpgrades(){
     const b=document.createElement("button");
     b.innerText="Upgrade";
     b.onclick=()=>{
-      if(crowns>=cost){
-        crowns-=cost;
-        levels[n]++;
-        save();
-        drawUpgrades();
-      }
+      if(crowns>=cost){crowns-=cost;levels[n]++;save();drawUpgrades();}
     };
     d.appendChild(b);
     upgradeContainer.appendChild(d);
   });
 }
 
-/*************************
+/*********************
   GAME CORE
-*************************/
+*********************/
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
+canvas.width=900;
+canvas.height=520;
 
 let elixir=10;
 let units=[];
 let towers=[];
 let scoreP=0,scoreE=0;
 let timeLeft=180;
+const SCORE_TO_WIN = 3;
 
 function startGame(){
   hideAll();
@@ -172,7 +171,6 @@ function startGame(){
   resetGame();
   startTimer(180);
 }
-
 function resetGame(){
   units=[];
   towers=createTowers();
@@ -182,20 +180,17 @@ function resetGame(){
   buildHand();
 }
 
-/*************************
+/*********************
   TIMER
-*************************/
+*********************/
 function startTimer(seconds){
   clearInterval(gameInterval);
-  timeLeft = seconds;
+  timeLeft=seconds;
   updateTimerUI();
   gameInterval=setInterval(()=>{
     timeLeft--;
     updateTimerUI();
-    if(timeLeft<=0){
-      clearInterval(gameInterval);
-      endGame();
-    }
+    if(timeLeft<=0){clearInterval(gameInterval);endGame();}
   },1000);
 }
 function updateTimerUI(){
@@ -204,32 +199,24 @@ function updateTimerUI(){
   timer.innerText=`${m}:${s.toString().padStart(2,"0")}`;
 }
 
-/*************************
+/*********************
   END GAME
-*************************/
+*********************/
 function endGame(winner=null){
   let message="";
-  if(winner==="player"){
-    crowns += SCORE_TO_WIN;
-    message = "You destroyed the King Tower! 👑 +3";
-  }else if(winner==="enemy"){
-    message = "Enemy destroyed your King Tower! 😢";
-  }else if(scoreP>scoreE){
-    crowns += scoreP;
-    message = "You win! 👑 +" + scoreP;
-  }else if(scoreE>scoreP){
-    message = "You lose 😢";
-  }else{
-    message = "Draw!";
-  }
+  if(winner==="player"){crowns+=SCORE_TO_WIN;message="You destroyed the King Tower! 👑 +3";}
+  else if(winner==="enemy"){message="Enemy destroyed your King Tower! 😢";}
+  else if(scoreP>scoreE){crowns+=scoreP;message="You win! 👑 +"+scoreP;}
+  else if(scoreE>scoreP){message="You lose 😢";}
+  else{message="Draw!";}
   alert(message);
   save();
   goMenu();
 }
 
-/*************************
+/*********************
   TOWERS
-*************************/
+*********************/
 function createTowers(){
   return [
     {x:200,y:420,hp:400,team:"player",king:false},
@@ -241,9 +228,9 @@ function createTowers(){
   ];
 }
 
-/*************************
+/*********************
   HAND / DRAG
-*************************/
+*********************/
 function buildHand(){
   hand.innerHTML="";
   deck.forEach(name=>{
@@ -251,10 +238,7 @@ function buildHand(){
     const d=document.createElement("div");
     d.className="card";
     d.draggable=true;
-    d.innerHTML=`
-      <div class="emoji">${c.emoji}</div>
-      <div class="name">${name}</div>
-      <div class="cost">${c.cost}💧</div>`;
+    d.innerHTML=`<div class="emoji">${c.emoji}</div><div class="name">${name}</div><div class="cost">${c.cost}💧</div>`;
     d.ondragstart=e=>e.dataTransfer.setData("card",name);
     hand.appendChild(d);
   });
@@ -267,24 +251,17 @@ canvas.ondrop=e=>{
   units.push(createUnit(name,e.offsetX,e.offsetY,"player"));
 };
 
-/*************************
+/*********************
   UNITS
-*************************/
+*********************/
 function createUnit(name,x,y,team){
   const c=cards[name];
-  return {
-    name,emoji:c.emoji,team,
-    x,y,
-    hp:c.hp*levels[name],
-    dmg:c.dmg*levels[name],
-    speed:c.speed,
-    target:null
-  };
+  return {name,emoji:c.emoji,team,x,y,hp:c.hp*levels[name],dmg:c.dmg*levels[name],speed:c.speed,target:null};
 }
 
-/*************************
+/*********************
   LOOP
-*************************/
+*********************/
 function loop(){
   drawMap();
   updateUnits();
@@ -296,86 +273,65 @@ function loop(){
 }
 loop();
 
-/*************************
+/*********************
   MAP
-*************************/
+*********************/
 function drawMap(){
   const a=arenas.find(x=>x.id===currentArena);
-  ctx.fillStyle=a.color;
-  ctx.fillRect(0,0,900,520);
-  ctx.fillStyle="#2563eb";
-  ctx.fillRect(0,240,900,40);
-  ctx.fillStyle="#92400e";
-  ctx.fillRect(250,240,60,40);
+  ctx.fillStyle=a.color; ctx.fillRect(0,0,900,520);
+  ctx.fillStyle="#2563eb"; ctx.fillRect(0,240,900,40);
+  ctx.fillStyle="#92400e"; ctx.fillRect(250,240,60,40);
   ctx.fillRect(590,240,60,40);
 }
 
-/*************************
+/*********************
   HUD
-*************************/
+*********************/
 function updateHUD(){
   score.innerText=`👑 ${scoreP} - ${scoreE}`;
   elixirFill.style.width=(elixir/10*100)+"%";
 }
 
-/*************************
-  DRAW
-*************************/
-function drawUnits(){
-  units.forEach(u=>{
-    ctx.font="26px serif";
-    ctx.fillText(u.emoji,u.x,u.y);
-  });
-}
+/*********************
+  DRAW UNITS & TOWERS
+*********************/
+function drawUnits(){units.forEach(u=>{ctx.font="26px serif";ctx.fillText(u.emoji,u.x,u.y);});}
 function drawTowers(){
   towers.forEach(t=>{
     ctx.fillStyle=t.team==="player"?"purple":"red";
     ctx.fillRect(t.x-20,t.y-20,40,40);
+    if(t.king){ctx.strokeStyle="gold";ctx.lineWidth=3;ctx.strokeRect(t.x-22,t.y-22,44,44);}
   });
 }
 
-/*************************
-  UPDATE
-*************************/
+/*********************
+  UPDATE UNITS
+*********************/
 function updateUnits(){
   units.forEach(u=>{
     const enemies=units.filter(e=>e.team!==u.team);
-    if(!u.target||u.target.hp<=0){
-      u.target=enemies.sort((a,b)=>dist(u,a)-dist(u,b))[0];
-    }
-    if(u.target){
-      if(dist(u,u.target)<30){
-        u.target.hp-=u.dmg*0.02;
-      }else{
-        u.y+=u.team==="player"?-u.speed:u.speed;
-      }
-    }
+    if(!u.target||u.target.hp<=0){u.target=enemies.sort((a,b)=>dist(u,a)-dist(u,b))[0];}
+    if(u.target){if(dist(u,u.target)<30){u.target.hp-=u.dmg*0.02;}else{u.y+=u.team==="player"?-u.speed:u.speed;}}
   });
   units=units.filter(u=>u.hp>0);
 }
 
-/*************************
+/*********************
   KING TOWER CHECK
-*************************/
+*********************/
 function checkKingTowers(){
   const playerKing=towers.find(t=>t.team==="player"&&t.king);
   const enemyKing=towers.find(t=>t.team==="enemy"&&t.king);
-
-  if(playerKing.hp<=0){
-    endGame("enemy");
-  }else if(enemyKing.hp<=0){
-    endGame("player");
-  }
+  if(playerKing.hp<=0){endGame("enemy");}
+  else if(enemyKing.hp<=0){endGame("player");}
 }
 
-/*************************
+/*********************
   UTILS
-*************************/
-function dist(a,b){
-  return Math.hypot(a.x-b.x,a.y-b.y);
-}
+*********************/
+function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
 
-/*************************
+/*********************
   START
-*************************/
+*********************/
 goMenu();
