@@ -5,6 +5,9 @@ const menu = document.getElementById("menu");
 const gameScreen = document.getElementById("gameScreen");
 const deckScreen = document.getElementById("deckScreen");
 const upgradeScreen = document.getElementById("upgradeScreen");
+
+const allCardsDiv = document.getElementById("allCards");
+const activeDeckDiv = document.getElementById("activeDeck");
 const upgradeContainer = document.getElementById("upgradeContainer");
 
 const canvas = document.getElementById("game");
@@ -16,38 +19,65 @@ const scoreDiv = document.getElementById("score");
 const elixirFill = document.getElementById("elixir-fill");
 
 /**********************
-  MENU BUTTONS
+  MENU NAV
 **********************/
-function showMenu(){
-  menu.classList.remove("hidden");
+function hideAll(){
+  menu.classList.add("hidden");
   gameScreen.classList.add("hidden");
   deckScreen.classList.add("hidden");
   upgradeScreen.classList.add("hidden");
-  document.getElementById("set-time-menu").classList.remove("hidden");
+}
+
+function showMenu(){
+  hideAll();
+  menu.classList.remove("hidden");
   updateCrownsUI();
 }
-function showDeckBuilder(){deckScreen.classList.remove("hidden");menu.classList.add("hidden"); renderDeckBuilder();}
-function showUpgradeScreen(){upgradeScreen.classList.remove("hidden");menu.classList.add("hidden"); drawUpgradeScreen();}
-function startGame(){menu.classList.add("hidden");gameScreen.classList.remove("hidden");document.getElementById("set-time-menu").classList.add("hidden");resetGame();}
 
-/**********************
-  CROWNS
-**********************/
-let crowns = Number(localStorage.getItem("crowns")) || 0;
-function updateCrownsUI(){document.getElementById("crownCount").innerText = `Crowns: ${crowns} 👑`;}
-function addCrowns(n){crowns+=n;localStorage.setItem("crowns",crowns);updateCrownsUI();}
+function showDeckBuilder(){
+  hideAll();
+  deckScreen.classList.remove("hidden");
+  renderDeckBuilder();
+}
+
+function showUpgradeScreen(){
+  hideAll();
+  upgradeScreen.classList.remove("hidden");
+  drawUpgradeScreen();
+}
+
+function startGame(){
+  hideAll();
+  gameScreen.classList.remove("hidden");
+  resetGame();
+}
 
 /**********************
   TIME
 **********************/
 let timeLeft = 180;
-function setTime(t){timeLeft=t;updateTimerUI();}
-function updateTimerUI(){timerDiv.innerText=`${Math.floor(timeLeft/60)}:${String(timeLeft%60).padStart(2,"0")}`}
+function setTime(t){ timeLeft = t; updateTimerUI(); }
+function updateTimerUI(){
+  timerDiv.innerText =
+    Math.floor(timeLeft/60)+":"+String(timeLeft%60).padStart(2,"0");
+}
 
 /**********************
-  CARDS AND LEVELS
+  CROWNS
 **********************/
-let cardLevels = JSON.parse(localStorage.getItem("cardLevels"))||{};
+let crowns = Number(localStorage.getItem("crowns")) || 0;
+function updateCrownsUI(){
+  document.getElementById("crownCount").innerText = `Crowns: ${crowns} 👑`;
+}
+function addCrowns(n){
+  crowns += n;
+  localStorage.setItem("crowns", crowns);
+  updateCrownsUI();
+}
+
+/**********************
+  CARDS DATA
+**********************/
 const baseCards = {
   knight:{emoji:"🗡️",hp:300,dmg:25,speed:1,cost:3},
   archer:{emoji:"🏹",hp:170,dmg:18,speed:1.2,cost:2},
@@ -55,174 +85,189 @@ const baseCards = {
   wizard:{emoji:"🪄",hp:260,dmg:32,speed:0.9,cost:4},
   goblin:{emoji:"👺",hp:120,dmg:14,speed:1.6,cost:2},
   skeleton:{emoji:"💀",hp:70,dmg:10,speed:1.8,cost:1},
-  fireball:{emoji:"🔥",spell:true,dmg:140,cost:4},
-  arrows:{emoji:"🏹",spell:true,dmg:90,cost:3},
   prince:{emoji:"🐎",hp:320,dmg:30,speed:1.4,cost:4},
   miniPekka:{emoji:"🤖",hp:280,dmg:45,speed:1.0,cost:4},
   healer:{emoji:"💉",hp:200,dmg:0,speed:0.8,cost:3},
-  balloon:{emoji:"🎈",hp:150,dmg:60,speed:0.7,cost:5},
-  musketeer:{emoji:"👩‍🚀",hp:200,dmg:25,speed:1.0,cost:3},
-  skeletonArmy:{emoji:"💀💀",hp:100,dmg:15,speed:1.5,cost:3},
-  barbarian:{emoji:"🪓",hp:180,dmg:20,speed:1.3,cost:2},
-  cannon:{emoji:"💣",hp:250,dmg:35,speed:0.5,cost:4},
-  fireSpirit:{emoji:"🔥",hp:80,dmg:40,speed:2.0,cost:2}
+  balloon:{emoji:"🎈",hp:150,dmg:60,speed:0.7,cost:5}
 };
 
-// Initialize cardLevels
+let cardLevels = JSON.parse(localStorage.getItem("cardLevels")) || {};
 Object.keys(baseCards).forEach(c=>{
-  if(!cardLevels[c] && !baseCards[c].spell) cardLevels[c]=1;
+  if(!cardLevels[c]) cardLevels[c] = 1;
 });
 
 /**********************
   DECK
 **********************/
-let deck = [];
-let activeDeck = [];
-// Ensure deck always has 8 cards at start
-if(deck.length===0){
-  deck = Object.keys(baseCards).filter(c=>!baseCards[c].spell).slice(0,8);
-}
-
-/**********************
-  UPGRADE SCREEN
-**********************/
-function drawUpgradeScreen(){
-  upgradeContainer.innerHTML = "";
-  upgradeScreen.style.backgroundColor = "#0284c7"; // blue background
-  Object.keys(baseCards).forEach(name => {
-    if(baseCards[name].spell) return; // skip spells
-    const div = document.createElement("div");
-    div.className = "upgradeCard";
-    div.style.display = "flex";
-    div.style.flexDirection = "column";
-    div.style.justifyContent = "center";
-    div.style.alignItems = "center";
-    div.style.width = "100px";
-    div.style.height = "100px";
-    div.style.border = "2px solid #fff";
-    div.style.borderRadius = "8px";
-    div.style.margin = "5px";
-    div.style.backgroundColor = "#1e40af";
-    div.style.color = "#fff";
-    div.style.textAlign = "center";
-    div.style.padding = "5px";
-    div.style.boxSizing = "border-box";
-
-    const emojiLine = document.createElement("div");
-    emojiLine.style.fontSize = "28px";
-    emojiLine.innerText = baseCards[name].emoji;
-
-    const nameLine = document.createElement("div");
-    nameLine.style.fontSize = "14px";
-    nameLine.style.fontWeight = "bold";
-    nameLine.innerText = name.charAt(0).toUpperCase() + name.slice(1);
-
-    const levelLine = document.createElement("div");
-    levelLine.style.fontSize = "12px";
-    levelLine.innerText = `Lvl ${cardLevels[name]}`;
-
-    div.appendChild(emojiLine);
-    div.appendChild(nameLine);
-    div.appendChild(levelLine);
-
-    const cost = cardLevels[name]*3;
-    const btn = document.createElement("button");
-    btn.innerText = `Upgrade (${cost} 👑)`;
-    btn.style.marginTop = "5px";
-    btn.onclick = () => upgradeCard(name);
-
-    div.appendChild(btn);
-    upgradeContainer.appendChild(div);
-  });
-}
-
-function upgradeCard(name){
-  const cost = cardLevels[name]*3;
-  if(crowns < cost){alert("Not enough crowns!"); return;}
-  crowns -= cost; cardLevels[name]++;
-  localStorage.setItem("crowns",crowns);
-  localStorage.setItem("cardLevels",JSON.stringify(cardLevels));
-  addCrowns(0); drawUpgradeScreen();
-}
+let deck = JSON.parse(localStorage.getItem("deck")) || Object.keys(baseCards).slice(0,8);
+let activeDeck = [...deck];
 
 /**********************
   DECK BUILDER
 **********************/
 function renderDeckBuilder(){
-  const allDiv = document.getElementById("allCards");
-  const deckDiv = document.getElementById("activeDeck");
-  allDiv.innerHTML = ""; deckDiv.innerHTML = "";
+  allCardsDiv.innerHTML = "";
+  activeDeckDiv.innerHTML = "";
+
   Object.keys(baseCards).forEach(name=>{
-    if(baseCards[name].spell) return;
-    const c=baseCards[name];
-    const cardDiv = document.createElement("div");
-    cardDiv.innerText = c.emoji+"\n"+name.charAt(0).toUpperCase()+name.slice(1)+"\n("+c.cost+")";
-    cardDiv.style.cursor="pointer";
-    cardDiv.style.width="60px"; cardDiv.style.height="80px"; cardDiv.style.border="1px solid #fff"; cardDiv.style.margin="2px"; cardDiv.style.textAlign="center";
-    cardDiv.onclick=()=>{
-      if(activeDeck.length<8 && !activeDeck.includes(name)){activeDeck.push(name); renderDeckBuilder();}
-    }
-    allDiv.appendChild(cardDiv);
+    const lvl = cardLevels[name];
+    const c = baseCards[name];
+    const card = document.createElement("div");
+    card.className = "bigCard";
+
+    if(lvl >= 5) card.classList.add("level-purple");
+    else if(lvl >= 3) card.classList.add("level-red");
+
+    card.innerHTML = `
+      <div class="emoji">${c.emoji}</div>
+      <div class="name">${name.toUpperCase()}</div>
+      <div class="level">Level ${lvl}</div>
+      <div class="cost">Cost: ${c.cost}</div>
+    `;
+
+    card.onclick = ()=>{
+      if(activeDeck.length < 8 && !activeDeck.includes(name)){
+        activeDeck.push(name);
+        renderDeckBuilder();
+      }
+    };
+
+    allCardsDiv.appendChild(card);
   });
+
   activeDeck.forEach(name=>{
-    const c=baseCards[name];
-    const div = document.createElement("div");
-    div.innerText = c.emoji+"\n"+name.charAt(0).toUpperCase()+name.slice(1);
-    div.style.cursor="pointer";
-    div.style.width="60px"; div.style.height="80px"; div.style.border="1px solid #fff"; div.style.margin="2px"; div.style.textAlign="center";
-    div.onclick=()=>{
-      activeDeck = activeDeck.filter(n=>n!==name); renderDeckBuilder();
-    }
-    deckDiv.appendChild(div);
+    const lvl = cardLevels[name];
+    const c = baseCards[name];
+    const card = document.createElement("div");
+    card.className = "bigCard";
+
+    if(lvl >= 5) card.classList.add("level-purple");
+    else if(lvl >= 3) card.classList.add("level-red");
+
+    card.innerHTML = `
+      <div class="emoji">${c.emoji}</div>
+      <div class="name">${name.toUpperCase()}</div>
+      <div class="level">Level ${lvl}</div>
+      <div class="cost">IN DECK</div>
+    `;
+
+    card.onclick = ()=>{
+      activeDeck = activeDeck.filter(n=>n!==name);
+      renderDeckBuilder();
+    };
+
+    activeDeckDiv.appendChild(card);
   });
 }
 
 function saveDeck(){
-  if(activeDeck.length!==8){alert("Deck must have 8 cards!"); return;}
-  deck = [...activeDeck]; alert("Deck saved!");
+  if(activeDeck.length !== 8){
+    alert("Deck must have 8 cards");
+    return;
+  }
+  deck = [...activeDeck];
+  localStorage.setItem("deck", JSON.stringify(deck));
+  alert("Deck Saved!");
+}
+
+/**********************
+  UPGRADES
+**********************/
+function drawUpgradeScreen(){
+  upgradeContainer.innerHTML = "";
+
+  Object.keys(baseCards).forEach(name=>{
+    const lvl = cardLevels[name];
+    const c = baseCards[name];
+    const card = document.createElement("div");
+    card.className = "bigCard";
+
+    if(lvl >= 5) card.classList.add("level-purple");
+    else if(lvl >= 3) card.classList.add("level-red");
+
+    const cost = lvl * 3;
+
+    card.innerHTML = `
+      <div class="emoji">${c.emoji}</div>
+      <div class="name">${name.toUpperCase()}</div>
+      <div class="level">Level ${lvl}</div>
+      <div class="cost">${cost} 👑</div>
+    `;
+
+    const btn = document.createElement("button");
+    btn.innerText = "Upgrade";
+    btn.onclick = ()=>{
+      if(crowns < cost){ alert("Not enough crowns"); return; }
+      crowns -= cost;
+      cardLevels[name]++;
+      localStorage.setItem("cardLevels", JSON.stringify(cardLevels));
+      localStorage.setItem("crowns", crowns);
+      drawUpgradeScreen();
+      updateCrownsUI();
+    };
+
+    card.appendChild(btn);
+    upgradeContainer.appendChild(card);
+  });
 }
 
 /**********************
   GAME STATE
 **********************/
-let elixir = 10,maxElixir=10,gameOver=false,paused=false,playerScore=0,enemyScore=0;
-const lanes=[{x:260},{x:640}];
-let hand=[], troops=[], towers=[], projectiles=[], deathAnimations=[];
+let elixir = 10;
+let troops = [];
+let towers = [];
+let hand = [];
+let playerScore = 0;
+let enemyScore = 0;
+let gameOver = false;
 
 /**********************
   TOWERS
 **********************/
-function createTower(x,y,team,king=false){return {x,y,team,king,size:king?56:48,hp:king?1800:1000,maxHp:king?1800:1000,emoji:king?"👑":"🏰",cooldown:0};}
-function resetTowers(){towers=[createTower(260,430,"player"),createTower(640,430,"player"),createTower(450,490,"player",true),createTower(260,70,"enemy"),createTower(640,70,"enemy"),createTower(450,20,"enemy",true)];}
+function resetTowers(){
+  towers = [
+    {x:260,y:430,hp:1000,maxHp:1000,team:"player",emoji:"🏰"},
+    {x:640,y:430,hp:1000,maxHp:1000,team:"player",emoji:"🏰"},
+    {x:450,y:480,hp:1800,maxHp:1800,team:"player",emoji:"👑",king:true},
+    {x:260,y:80,hp:1000,maxHp:1000,team:"enemy",emoji:"🏰"},
+    {x:640,y:80,hp:1000,maxHp:1000,team:"enemy",emoji:"🏰"},
+    {x:450,y:40,hp:1800,maxHp:1800,team:"enemy",emoji:"👑",king:true}
+  ];
+}
 
 /**********************
-  RESET GAME
+  GAME RESET
 **********************/
 function resetGame(){
-  if(deck.length===0){
-    deck = Object.keys(baseCards).filter(c=>!baseCards[c].spell).slice(0,8);
-  }
-  elixir=10;gameOver=false;paused=false;playerScore=0;enemyScore=0;troops=[];projectiles=[];deathAnimations=[];
+  elixir = 10;
+  troops = [];
+  playerScore = enemyScore = 0;
+  gameOver = false;
   resetTowers();
-  hand = deck.length>=4 ? deck.slice(0,4) : Object.keys(baseCards).filter(c=>!baseCards[c].spell).slice(0,4);
+  hand = deck.slice(0,4);
   drawHand();
   updateTimerUI();
-  scoreDiv.innerText=`👑 0 - 0`;
+  scoreDiv.innerText = "👑 0 - 0";
 }
 
 /**********************
   HAND UI
 **********************/
 function drawHand(){
-  cardsDiv.innerHTML="";
-  hand.forEach(cardName=>{
-    const c=baseCards[cardName];
-    const div=document.createElement("div");
-    div.className="card";
-    if(elixir>=c.cost) div.classList.add("ready");
-    div.draggable=true;
-    div.dataset.card=cardName;
-    div.innerHTML=`${c.emoji}<br>${cardName.charAt(0).toUpperCase()+cardName.slice(1)}<br>${c.cost}`;
+  cardsDiv.innerHTML = "";
+  hand.forEach(name=>{
+    const c = baseCards[name];
+    const div = document.createElement("div");
+    div.className = "card";
+    if(elixir >= c.cost) div.classList.add("ready");
+    div.draggable = true;
+    div.dataset.card = name;
+    div.innerHTML = `
+      <div class="emoji">${c.emoji}</div>
+      <div class="name">${name}</div>
+      <div class="cost">${c.cost}</div>
+    `;
     cardsDiv.appendChild(div);
   });
 }
@@ -230,121 +275,80 @@ function drawHand(){
 /**********************
   DRAG & DROP
 **********************/
-let draggedCard=null;
-cardsDiv.addEventListener("dragstart",e=>{draggedCard=e.target.dataset.card;});
+let dragged = null;
+cardsDiv.addEventListener("dragstart",e=>{
+  dragged = e.target.dataset.card;
+});
 canvas.addEventListener("dragover",e=>e.preventDefault());
 canvas.addEventListener("drop",e=>{
-  if(gameOver||paused) return;e.preventDefault();if(!draggedCard) return;
-  const card=baseCards[draggedCard];if(elixir<card.cost) return;
-  const rect=canvas.getBoundingClientRect();
-  const x=e.clientX-rect.left;const y=e.clientY-rect.top;if(y<260) return;
-  elixir-=card.cost;
-  if(card.spell){castSpell(draggedCard,x,y);}
-  else{
-    const lane=x<450?0:1;const lvl=cardLevels[draggedCard]||1;
-    troops.push({x:lanes[lane].x,y,lane,team:"player",emoji:card.emoji,hp:Math.floor(card.hp*(1+0.1*(lvl-1))), maxHp:Math.floor(card.hp*(1+0.1*(lvl-1))), dmg:Math.floor(card.dmg*(1+0.1*(lvl-1))), speed:card.speed, cooldown:0});
-  }
-  deck.push(draggedCard); hand.shift(); hand.push(deck.shift()); drawHand(); draggedCard=null;
+  if(!dragged) return;
+  const c = baseCards[dragged];
+  if(elixir < c.cost) return;
+  elixir -= c.cost;
+
+  const rect = canvas.getBoundingClientRect();
+  troops.push({
+    x:e.clientX-rect.left,
+    y:e.clientY-rect.top,
+    team:"player",
+    emoji:c.emoji,
+    hp:c.hp*(1+0.1*(cardLevels[dragged]-1)),
+    dmg:c.dmg,
+    speed:c.speed
+  });
+
+  deck.push(dragged);
+  hand.shift();
+  hand.push(deck.shift());
+  drawHand();
+  dragged = null;
 });
 
 /**********************
-  SPELLS
-**********************/
-function castSpell(type,x,y){
-  troops.forEach(t=>{if(t.team==="enemy"&&Math.hypot(t.x-x,t.y-y)<70) t.hp-=baseCards[type].dmg;});
-  towers.forEach(t=>{if(t.team==="enemy"&&Math.hypot(t.x-x,t.y-y)<80) t.hp-=baseCards[type].dmg;});
-}
-
-/**********************
-  ENEMY AI
-**********************/
-setInterval(()=>{
-  if(gameOver||paused) return;
-  const pool=Object.keys(baseCards).filter(c=>!baseCards[c].spell);
-  const name=pool[Math.floor(Math.random()*pool.length)];
-  const lane=Math.random()<0.5?0:1;const lvl=cardLevels[name]||1;
-  troops.push({x:lanes[lane].x,y:120,lane,team:"enemy",emoji:baseCards[name].emoji,hp:Math.floor(baseCards[name].hp*(1+0.1*(lvl-1))), maxHp:Math.floor(baseCards[name].hp*(1+0.1*(lvl-1))), dmg:Math.floor(baseCards[name].dmg*(1+0.1*(lvl-1))), speed:baseCards[name].speed,cooldown:0});
-},3500);
-
-/**********************
-  MAP + DRAW
-**********************/
-function drawMap(){
-  ctx.fillStyle="#14532d";ctx.fillRect(0,0,900,520); // battlefield
-  ctx.fillStyle="#0284c7";ctx.fillRect(0,240,900,40); // river
-  ctx.fillStyle="#8b4513";lanes.forEach(l=>{ctx.fillRect(l.x-25,240,50,40);}); // bridges
-}
-function drawEntity(e){ctx.font=`${e.size||30}px serif`;ctx.textAlign="center";ctx.fillText(e.emoji,e.x,e.y+10);ctx.fillStyle=e.team==="player"?"#a855f7":"#ef4444";ctx.fillRect(e.x-25,e.y-(e.size||30),(e.hp/e.maxHp)*50,6);}
-
-/**********************
-  UPDATE LOGIC + DEATH ANIMATIONS
-**********************/
-function updateTroop(t){const enemies=[...troops.filter(o=>o.team!==t.team&&o.lane===t.lane),...towers.filter(o=>o.team!==t.team)];if(!enemies.length){t.y+=t.team==="player"?-t.speed:t.speed;return;}const target=enemies[0];const dist=Math.hypot(t.x-target.x,t.y-target.y);if(dist<36 && t.cooldown<=0){target.hp-=t.dmg;t.cooldown=30;}else{const a=Math.atan2(target.y-t.y,target.x-t.x);t.x+=Math.cos(a)*t.speed;t.y+=Math.sin(a)*t.speed;} t.cooldown--}
-
-/**********************
-  LOOP
+  GAME LOOP
 **********************/
 function loop(){
   ctx.clearRect(0,0,900,520);
-  drawMap();
-  if(!paused&&!gameOver){troops.forEach(updateTroop);}
 
-  // REMOVE DEAD TROOPS + TRIGGER DEATH ANIMATION
-  troops = troops.filter(t => {
-    if (t.hp <= 0) { deathAnimations.push({x:t.x, y:t.y, emoji:t.emoji, size:30, alpha:1}); return false; }
-    return true;
+  // River
+  ctx.fillStyle="#0284c7";
+  ctx.fillRect(0,240,900,40);
+
+  // Bridges
+  ctx.fillStyle="#8b4513";
+  ctx.fillRect(235,240,50,40);
+  ctx.fillRect(615,240,50,40);
+
+  troops.forEach(t=>{
+    t.y += t.team==="player" ? -t.speed : t.speed;
+    ctx.font="30px serif";
+    ctx.fillText(t.emoji,t.x,t.y);
   });
 
-  // REMOVE DEAD TOWERS + DEATH ANIMATION
-  towers = towers.filter(t => {
-    if (t.hp <= 0){
-      deathAnimations.push({x:t.x, y:t.y, emoji:t.emoji, size:t.size||30, alpha:1});
-      if(t.king){
-        gameOver = true;
-        if(t.team==="enemy"){playerScore=3; addCrowns(5);} 
-        else{enemyScore=3; addCrowns(1);}
-        setTimeout(showMenu,2000);
-      } else { t.team==="enemy"?playerScore++:enemyScore++; }
-      scoreDiv.innerText = `👑 ${playerScore} - ${enemyScore}`;
-      return false;
-    }
-    return true;
+  towers.forEach(t=>{
+    ctx.font="34px serif";
+    ctx.fillText(t.emoji,t.x,t.y);
   });
 
-  // DRAW TROOPS + TOWERS
-  troops.forEach(drawEntity);
-  towers.forEach(drawEntity);
-
-  // DRAW DEATH ANIMATIONS
-  deathAnimations.forEach((a,i)=>{
-    ctx.save();
-    ctx.globalAlpha = a.alpha;
-    ctx.font = `${a.size}px serif`;
-    ctx.textAlign = "center";
-    ctx.fillText(a.emoji, a.x, a.y+10);
-    ctx.restore();
-    a.alpha -= 0.05; a.size -= 0.5;
-    if(a.alpha <= 0) deathAnimations.splice(i,1);
-  });
-
-  elixirFill.style.width=`${(elixir/maxElixir)*100}%`;
+  elixirFill.style.width = (elixir/10*100)+"%";
   requestAnimationFrame(loop);
 }
 loop();
 
 /**********************
-  TIMERS + ELIXIR
+  TIMERS
 **********************/
-setInterval(()=>{if(!paused&&!gameOver&&elixir<maxElixir){elixir++;drawHand();}},1000);
-setInterval(()=>{if(!paused&&!gameOver&&timeLeft>0){timeLeft--;updateTimerUI();}},1000);
+setInterval(()=>{
+  if(elixir < 10) elixir++;
+  drawHand();
+},1000);
 
-/**********************
-  PAUSE / RESTART
-**********************/
-function pauseGame(){paused=!paused;}
-function restartGame(){resetGame();gameOver=false;paused=false;}
+setInterval(()=>{
+  if(timeLeft>0){ timeLeft--; updateTimerUI(); }
+},1000);
 
 /**********************
   START
 **********************/
-updateCrownsUI();showMenu();
+updateCrownsUI();
+showMenu();
