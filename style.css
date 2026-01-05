@@ -9,51 +9,65 @@ body{
 .hidden{display:none;}
 
 button{
-  padding:8px 12px;
-  margin:5px;
+  padding:12px 18px;
+  margin:8px;
   cursor:pointer;
   border:none;
-  border-radius:5px;
+  border-radius:8px;
   background:#3b82f6;
   color:#fff;
   font-weight:bold;
+  font-size:16px;
 }
 
+#menu button{
+  font-size:18px;
+  width:220px;
+}
+
+/* ===== GAME HAND ===== */
 #cards{
   position:absolute;
   bottom:0;
   left:50%;
   transform:translateX(-50%);
   display:flex;
-  gap:8px;
-  padding:10px;
+  gap:12px;
+  padding:12px;
 }
 
 .card{
-  width:60px;
-  height:80px;
+  width:80px;
+  height:110px;
   background:#1e40af;
-  border:2px solid #fff;
-  border-radius:8px;
+  border:3px solid #fff;
+  border-radius:12px;
   display:flex;
   flex-direction:column;
-  justify-content:center;
+  justify-content:space-between;
   align-items:center;
-  font-size:12px;
+  padding:6px;
+  box-sizing:border-box;
   cursor:pointer;
+  user-select:none;
 }
 
 .card.ready{border-color:#a855f7;}
 
+.card .emoji{font-size:32px;}
+.card .name{font-size:13px;font-weight:bold;}
+.card .cost{font-size:12px;color:#ddd;}
+
+/* ===== ELIXIR ===== */
 #elixir-bar{
   position:absolute;
-  bottom:100px;
+  bottom:140px;
   left:50%;
   transform:translateX(-50%);
-  width:300px;
-  height:20px;
+  width:320px;
+  height:22px;
   background:#ddd;
-  border-radius:10px;
+  border-radius:12px;
   overflow:hidden;
 }
 
@@ -64,42 +78,49 @@ button{
   transition:width 0.2s;
 }
 
+/* ===== TIMER + SCORE ===== */
 #timer,#score{
   position:absolute;
   top:10px;
-  font-size:20px;
+  font-size:22px;
   font-weight:bold;
 }
-
-#timer{left:50%; transform:translateX(-50%);}
+#timer{left:50%;transform:translateX(-50%);}
 #score{right:20px;}
 
+/* ===== CARD GRIDS ===== */
 .card-container{
   display:flex;
   flex-wrap:wrap;
   justify-content:center;
-  gap:5px;
-  margin:10px 0;
+  gap:12px;
+  margin:20px 0;
 }
 
-.upgradeCard{
+/* ===== UPGRADE + DECK CARDS ===== */
+.bigCard{
+  width:130px;
+  height:160px;
+  background:#1e40af;
+  border:3px solid #fff;
+  border-radius:14px;
   display:flex;
   flex-direction:column;
-  justify-content:center;
+  justify-content:space-between;
   align-items:center;
-  width:100px;
-  height:100px;
-  border:2px solid #fff;
-  border-radius:8px;
-  background:#1e40af;
-  color:#fff;
-  text-align:center;
-  padding:5px;
+  padding:8px;
   box-sizing:border-box;
+  text-align:center;
 }
 
-.upgradeCard button{
-  margin-top:5px;
-  padding:3px 5px;
-  font-size:12px;
+.bigCard .emoji{font-size:42px;}
+.bigCard .name{font-size:15px;font-weight:bold;}
+.bigCard .level{font-size:13px;}
+.bigCard .cost{font-size:13px;color:#e5e7eb;}
+
+.bigCard button{
+  margin-top:6px;
+  padding:6px 10px;
+  font-size:13px;
+  background:#22c55e;
 }
