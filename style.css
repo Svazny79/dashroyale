@@ -13,7 +13,7 @@ button{
   margin:8px;
   cursor:pointer;
   border:none;
-  border-radius:8px;
+  border-radius:10px;
   background:#3b82f6;
   color:#fff;
   font-weight:bold;
@@ -21,51 +21,52 @@ button{
 }
 
 #menu button{
-  font-size:18px;
-  width:220px;
+  width:240px;
+  font-size:20px;
 }
 
-/* ===== GAME HAND ===== */
+/* ================= GAME HAND ================= */
 #cards{
   position:absolute;
   bottom:0;
   left:50%;
   transform:translateX(-50%);
   display:flex;
-  gap:12px;
-  padding:12px;
+  gap:14px;
+  padding:14px;
 }
 
 .card{
-  width:80px;
-  height:110px;
+  width:90px;
+  height:120px;
   background:#1e40af;
   border:3px solid #fff;
-  border-radius:12px;
+  border-radius:14px;
   display:flex;
   flex-direction:column;
   justify-content:space-between;
   align-items:center;
-  padding:6px;
+  padding:8px;
   box-sizing:border-box;
   cursor:pointer;
-  user-select:none;
 }
 
-.card.ready{border-color:#a855f7;}
+.card.ready{
+  border-color:#a855f7;
+}
 
-.card .emoji{font-size:32px;}
-.card .name{font-size:13px;font-weight:bold;}
-.card .cost{font-size:12px;color:#ddd;}
+.card .emoji{font-size:34px;}
+.card .name{font-size:14px;font-weight:bold;}
+.card .cost{font-size:13px;color:#ddd;}
 
-/* ===== ELIXIR ===== */
+/* ================= ELIXIR ================= */
 #elixir-bar{
   position:absolute;
-  bottom:140px;
+  bottom:150px;
   left:50%;
   transform:translateX(-50%);
-  width:320px;
-  height:22px;
+  width:340px;
+  height:24px;
   background:#ddd;
   border-radius:12px;
   overflow:hidden;
@@ -78,49 +79,67 @@ button{
   transition:width 0.2s;
 }
 
-/* ===== TIMER + SCORE ===== */
+/* ================= TIMER / SCORE ================= */
 #timer,#score{
   position:absolute;
   top:10px;
-  font-size:22px;
+  font-size:24px;
   font-weight:bold;
 }
-#timer{left:50%;transform:translateX(-50%);}
-#score{right:20px;}
 
-/* ===== CARD GRIDS ===== */
+#timer{
+  left:50%;
+  transform:translateX(-50%);
+}
+
+#score{
+  right:20px;
+}
+
+/* ================= CARD GRIDS ================= */
 .card-container{
   display:flex;
   flex-wrap:wrap;
   justify-content:center;
-  gap:12px;
+  gap:14px;
   margin:20px 0;
 }
 
-/* ===== UPGRADE + DECK CARDS ===== */
+/* ================= BIG CARDS ================= */
 .bigCard{
-  width:130px;
-  height:160px;
+  width:150px;
+  height:190px;
   background:#1e40af;
   border:3px solid #fff;
-  border-radius:14px;
+  border-radius:16px;
   display:flex;
   flex-direction:column;
   justify-content:space-between;
   align-items:center;
-  padding:8px;
+  padding:10px;
   box-sizing:border-box;
   text-align:center;
 }
 
-.bigCard .emoji{font-size:42px;}
-.bigCard .name{font-size:15px;font-weight:bold;}
-.bigCard .level{font-size:13px;}
-.bigCard .cost{font-size:13px;color:#e5e7eb;}
+.bigCard .emoji{font-size:46px;}
+.bigCard .name{font-size:16px;font-weight:bold;}
+.bigCard .level{font-size:14px;}
+.bigCard .cost{font-size:14px;color:#e5e7eb;}
 
 .bigCard button{
   margin-top:6px;
-  padding:6px 10px;
-  font-size:13px;
+  padding:6px 12px;
+  font-size:14px;
   background:#22c55e;
+  border-radius:8px;
+}
+
+/* ================= LEVEL HIGHLIGHTS ================= */
+.level-red{
+  border-color:#ef4444 !important;
+}
+
+.level-purple{
+  border-color:#a855f7 !important;
+  box-shadow:0 0 14px #a855f7;
 }
