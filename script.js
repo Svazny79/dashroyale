@@ -1,25 +1,50 @@
 /**********************
-  GLOBAL ELEMENTS
+  SAVE / LOAD
 **********************/
-const menu = document.getElementById("menu");
-const gameScreen = document.getElementById("gameScreen");
-const deckScreen = document.getElementById("deckScreen");
-const upgradeScreen = document.getElementById("upgradeScreen");
+let crowns = Number(localStorage.getItem("crowns")) || 0;
+let currentArena = Number(localStorage.getItem("arena")) || 1;
+let deck = JSON.parse(localStorage.getItem("deck")) || ["knight","archer","giant","goblin"];
+let levels = JSON.parse(localStorage.getItem("levels")) || {};
+const SCORE_TO_WIN = 3;
 
-const allCardsDiv = document.getElementById("allCards");
-const activeDeckDiv = document.getElementById("activeDeck");
-const upgradeContainer = document.getElementById("upgradeContainer");
-
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-
-const cardsDiv = document.getElementById("cards");
-const timerDiv = document.getElementById("timer");
-const scoreDiv = document.getElementById("score");
-const elixirFill = document.getElementById("elixir-fill");
+function save(){
+  localStorage.setItem("crowns",crowns);
+  localStorage.setItem("arena",currentArena);
+  localStorage.setItem("deck",JSON.stringify(deck));
+  localStorage.setItem("levels",JSON.stringify(levels));
+}
 
 /**********************
-  MENU NAV
+  ARENAS
+**********************/
+const arenas = [
+  {id:1,name:"Goblin Stadium",need:0,color:"#3bb273",
+   cards:["knight","archer","goblin","skeleton","giant"]},
+  {id:2,name:"Bone Pit",need:50,color:"#9ca3af",
+   cards:["knight","archer","goblin","skeleton","giant","wizard","prince"]},
+  {id:3,name:"Barbarian Bowl",need:120,color:"#d97706",
+   cards:["knight","archer","goblin","skeleton","giant","wizard","prince","miniPekka","balloon"]}
+];
+
+/**********************
+  CARDS
+**********************/
+const cards = {
+  knight:{emoji:"🗡️",cost:3,hp:120,dmg:15,speed:0.6},
+  archer:{emoji:"🏹",cost:2,hp:70,dmg:10,speed:0.7},
+  goblin:{emoji:"👺",cost:2,hp:60,dmg:12,speed:0.9},
+  skeleton:{emoji:"💀",cost:1,hp:40,dmg:8,speed:1},
+  giant:{emoji:"🗿",cost:5,hp:300,dmg:25,speed:0.4},
+  wizard:{emoji:"🪄",cost:4,hp:90,dmg:20,speed:0.6},
+  prince:{emoji:"🐎",cost:4,hp:160,dmg:30,speed:0.8},
+  miniPekka:{emoji:"🤖",cost:4,hp:140,dmg:35,speed:0.7},
+  balloon:{emoji:"🎈",cost:5,hp:200,dmg:40,speed:0.5}
+};
+
+Object.keys(cards).forEach(c=>levels[c]=levels[c]||1);
+
+/**********************
+  UI NAV
 **********************/
 function hideAll(){
   menu.classList.add("hidden");
@@ -27,24 +52,119 @@ function hideAll(){
   deckScreen.classList.add("hidden");
   upgradeScreen.classList.add("hidden");
 }
-
-function showMenu(){
+function goMenu(){
   hideAll();
   menu.classList.remove("hidden");
-  updateCrownsUI();
+  crownCount.innerText = `👑 ${crowns}`;
+  drawArenas();
 }
 
-function showDeckBuilder(){
+/**********************
+  ARENA UI
+**********************/
+function drawArenas(){
+  arenaContainer.innerHTML="";
+  arenas.forEach(a=>{
+    const d=document.createElement("div");
+    d.className="arenaCard";
+    if(crowns<a.need)d.classList.add("locked");
+    if(a.id===currentArena)d.classList.add("active");
+
+    d.innerHTML=`
+      <div class="arenaMap" style="background:${a.color}"></div>
+      <h3>${a.name}</h3>
+      <p>${a.need===0?"Unlocked":a.need+" 👑"}</p>
+    `;
+    if(crowns>=a.need){
+      d.onclick=()=>{currentArena=a.id;save();drawArenas();}
+    }
+    arenaContainer.appendChild(d);
+  });
+}
+
+/**********************
+  DECK BUILDER
+**********************/
+function openDeck(){
   hideAll();
   deckScreen.classList.remove("hidden");
-  renderDeckBuilder();
+  renderDeck();
+}
+function renderDeck(){
+  activeDeck.innerHTML="";
+  allCards.innerHTML="";
+  deck.forEach(n=>drawDeckCard(n,true));
+  arenas.find(a=>a.id===currentArena).cards.forEach(n=>{
+    if(!deck.includes(n))drawDeckCard(n,false);
+  });
+}
+function drawDeckCard(name,inDeck){
+  const c=cards[name],lvl=levels[name];
+  const d=document.createElement("div");
+  d.className="bigCard";
+  if(lvl>=5)d.classList.add("level-purple");
+  else if(lvl>=3)d.classList.add("level-red");
+
+  d.innerHTML=`
+    <div class="emoji">${c.emoji}</div>
+    <div class="name">${name.toUpperCase()}</div>
+    <div class="level">Level ${lvl}</div>
+    <div class="cost">${inDeck?"IN DECK":c.cost+" 💧"}</div>
+  `;
+  d.onclick=()=>{
+    if(inDeck)deck=deck.filter(x=>x!==name);
+    else if(deck.length<8)deck.push(name);
+    save();renderDeck();
+  };
+  (inDeck?activeDeck:allCards).appendChild(d);
 }
 
-function showUpgradeScreen(){
+/**********************
+  UPGRADES
+**********************/
+function openUpgrades(){
   hideAll();
   upgradeScreen.classList.remove("hidden");
-  drawUpgradeScreen();
+  drawUpgrades();
 }
+function drawUpgrades(){
+  upgradeContainer.innerHTML="";
+  Object.keys(cards).forEach(n=>{
+    const lvl=levels[n],cost=lvl*3;
+    const d=document.createElement("div");
+    d.className="bigCard";
+    if(lvl>=5)d.classList.add("level-purple");
+    else if(lvl>=3)d.classList.add("level-red");
+
+    d.innerHTML=`
+      <div class="emoji">${cards[n].emoji}</div>
+      <div class="name">${n.toUpperCase()}</div>
+      <div class="level">Level ${lvl}</div>
+      <div class="cost">${cost} 👑</div>
+    `;
+    const b=document.createElement("button");
+    b.innerText="Upgrade";
+    b.onclick=()=>{
+      if(crowns>=cost){
+        crowns-=cost;levels[n]++;save();drawUpgrades();
+      }
+    };
+    d.appendChild(b);
+    upgradeContainer.appendChild(d);
+  });
+}
+
+/**********************
+  GAME CORE
+**********************/
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+
+let elixir=10;
+let units=[];
+let towers=[];
+let scoreP=0,scoreE=0;
+let timeLeft=180;
 
 function startGame(){
   hideAll();
@@ -52,303 +172,152 @@ function startGame(){
   resetGame();
 }
 
-/**********************
-  TIME
-**********************/
-let timeLeft = 180;
-function setTime(t){ timeLeft = t; updateTimerUI(); }
-function updateTimerUI(){
-  timerDiv.innerText =
-    Math.floor(timeLeft/60)+":"+String(timeLeft%60).padStart(2,"0");
+function resetGame(){
+  units=[];
+  towers=createTowers();
+  scoreP=0;scoreE=0;
+  elixir=10;
+  timeLeft=180;
+  buildHand();
 }
-
-/**********************
-  CROWNS
-**********************/
-let crowns = Number(localStorage.getItem("crowns")) || 0;
-function updateCrownsUI(){
-  document.getElementById("crownCount").innerText = `Crowns: ${crowns} 👑`;
-}
-function addCrowns(n){
-  crowns += n;
-  localStorage.setItem("crowns", crowns);
-  updateCrownsUI();
-}
-
-/**********************
-  CARDS DATA
-**********************/
-const baseCards = {
-  knight:{emoji:"🗡️",hp:300,dmg:25,speed:1,cost:3},
-  archer:{emoji:"🏹",hp:170,dmg:18,speed:1.2,cost:2},
-  giant:{emoji:"🗿",hp:650,dmg:35,speed:0.6,cost:5},
-  wizard:{emoji:"🪄",hp:260,dmg:32,speed:0.9,cost:4},
-  goblin:{emoji:"👺",hp:120,dmg:14,speed:1.6,cost:2},
-  skeleton:{emoji:"💀",hp:70,dmg:10,speed:1.8,cost:1},
-  prince:{emoji:"🐎",hp:320,dmg:30,speed:1.4,cost:4},
-  miniPekka:{emoji:"🤖",hp:280,dmg:45,speed:1.0,cost:4},
-  healer:{emoji:"💉",hp:200,dmg:0,speed:0.8,cost:3},
-  balloon:{emoji:"🎈",hp:150,dmg:60,speed:0.7,cost:5}
-};
-
-let cardLevels = JSON.parse(localStorage.getItem("cardLevels")) || {};
-Object.keys(baseCards).forEach(c=>{
-  if(!cardLevels[c]) cardLevels[c] = 1;
-});
-
-/**********************
-  DECK
-**********************/
-let deck = JSON.parse(localStorage.getItem("deck")) || Object.keys(baseCards).slice(0,8);
-let activeDeck = [...deck];
-
-/**********************
-  DECK BUILDER
-**********************/
-function renderDeckBuilder(){
-  allCardsDiv.innerHTML = "";
-  activeDeckDiv.innerHTML = "";
-
-  Object.keys(baseCards).forEach(name=>{
-    const lvl = cardLevels[name];
-    const c = baseCards[name];
-    const card = document.createElement("div");
-    card.className = "bigCard";
-
-    if(lvl >= 5) card.classList.add("level-purple");
-    else if(lvl >= 3) card.classList.add("level-red");
-
-    card.innerHTML = `
-      <div class="emoji">${c.emoji}</div>
-      <div class="name">${name.toUpperCase()}</div>
-      <div class="level">Level ${lvl}</div>
-      <div class="cost">Cost: ${c.cost}</div>
-    `;
-
-    card.onclick = ()=>{
-      if(activeDeck.length < 8 && !activeDeck.includes(name)){
-        activeDeck.push(name);
-        renderDeckBuilder();
-      }
-    };
-
-    allCardsDiv.appendChild(card);
-  });
-
-  activeDeck.forEach(name=>{
-    const lvl = cardLevels[name];
-    const c = baseCards[name];
-    const card = document.createElement("div");
-    card.className = "bigCard";
-
-    if(lvl >= 5) card.classList.add("level-purple");
-    else if(lvl >= 3) card.classList.add("level-red");
-
-    card.innerHTML = `
-      <div class="emoji">${c.emoji}</div>
-      <div class="name">${name.toUpperCase()}</div>
-      <div class="level">Level ${lvl}</div>
-      <div class="cost">IN DECK</div>
-    `;
-
-    card.onclick = ()=>{
-      activeDeck = activeDeck.filter(n=>n!==name);
-      renderDeckBuilder();
-    };
-
-    activeDeckDiv.appendChild(card);
-  });
-}
-
-function saveDeck(){
-  if(activeDeck.length !== 8){
-    alert("Deck must have 8 cards");
-    return;
-  }
-  deck = [...activeDeck];
-  localStorage.setItem("deck", JSON.stringify(deck));
-  alert("Deck Saved!");
-}
-
-/**********************
-  UPGRADES
-**********************/
-function drawUpgradeScreen(){
-  upgradeContainer.innerHTML = "";
-
-  Object.keys(baseCards).forEach(name=>{
-    const lvl = cardLevels[name];
-    const c = baseCards[name];
-    const card = document.createElement("div");
-    card.className = "bigCard";
-
-    if(lvl >= 5) card.classList.add("level-purple");
-    else if(lvl >= 3) card.classList.add("level-red");
-
-    const cost = lvl * 3;
-
-    card.innerHTML = `
-      <div class="emoji">${c.emoji}</div>
-      <div class="name">${name.toUpperCase()}</div>
-      <div class="level">Level ${lvl}</div>
-      <div class="cost">${cost} 👑</div>
-    `;
-
-    const btn = document.createElement("button");
-    btn.innerText = "Upgrade";
-    btn.onclick = ()=>{
-      if(crowns < cost){ alert("Not enough crowns"); return; }
-      crowns -= cost;
-      cardLevels[name]++;
-      localStorage.setItem("cardLevels", JSON.stringify(cardLevels));
-      localStorage.setItem("crowns", crowns);
-      drawUpgradeScreen();
-      updateCrownsUI();
-    };
-
-    card.appendChild(btn);
-    upgradeContainer.appendChild(card);
-  });
-}
-
-/**********************
-  GAME STATE
-**********************/
-let elixir = 10;
-let troops = [];
-let towers = [];
-let hand = [];
-let playerScore = 0;
-let enemyScore = 0;
-let gameOver = false;
 
 /**********************
   TOWERS
 **********************/
-function resetTowers(){
-  towers = [
-    {x:260,y:430,hp:1000,maxHp:1000,team:"player",emoji:"🏰"},
-    {x:640,y:430,hp:1000,maxHp:1000,team:"player",emoji:"🏰"},
-    {x:450,y:480,hp:1800,maxHp:1800,team:"player",emoji:"👑",king:true},
-    {x:260,y:80,hp:1000,maxHp:1000,team:"enemy",emoji:"🏰"},
-    {x:640,y:80,hp:1000,maxHp:1000,team:"enemy",emoji:"🏰"},
-    {x:450,y:40,hp:1800,maxHp:1800,team:"enemy",emoji:"👑",king:true}
+function createTowers(){
+  return [
+    {x:200,y:420,hp:400,team:"player",king:false},
+    {x:700,y:420,hp:400,team:"player",king:false},
+    {x:450,y:470,hp:700,team:"player",king:true},
+
+    {x:200,y:100,hp:400,team:"enemy",king:false},
+    {x:700,y:100,hp:400,team:"enemy",king:false},
+    {x:450,y:50,hp:700,team:"enemy",king:true},
   ];
 }
 
 /**********************
-  GAME RESET
+  HAND / DRAG
 **********************/
-function resetGame(){
-  elixir = 10;
-  troops = [];
-  playerScore = enemyScore = 0;
-  gameOver = false;
-  resetTowers();
-  hand = deck.slice(0,4);
-  drawHand();
-  updateTimerUI();
-  scoreDiv.innerText = "👑 0 - 0";
-}
-
-/**********************
-  HAND UI
-**********************/
-function drawHand(){
-  cardsDiv.innerHTML = "";
-  hand.forEach(name=>{
-    const c = baseCards[name];
-    const div = document.createElement("div");
-    div.className = "card";
-    if(elixir >= c.cost) div.classList.add("ready");
-    div.draggable = true;
-    div.dataset.card = name;
-    div.innerHTML = `
+function buildHand(){
+  hand.innerHTML="";
+  deck.forEach(name=>{
+    const c=cards[name];
+    const d=document.createElement("div");
+    d.className="card";
+    d.draggable=true;
+    d.innerHTML=`
       <div class="emoji">${c.emoji}</div>
       <div class="name">${name}</div>
-      <div class="cost">${c.cost}</div>
-    `;
-    cardsDiv.appendChild(div);
+      <div class="cost">${c.cost}💧</div>`;
+    d.ondragstart=e=>e.dataTransfer.setData("card",name);
+    hand.appendChild(d);
   });
 }
 
+canvas.ondragover=e=>e.preventDefault();
+canvas.ondrop=e=>{
+  const name=e.dataTransfer.getData("card");
+  if(elixir<cards[name].cost)return;
+  elixir-=cards[name].cost;
+  units.push(createUnit(name,e.offsetX,e.offsetY,"player"));
+};
+
 /**********************
-  DRAG & DROP
+  UNITS
 **********************/
-let dragged = null;
-cardsDiv.addEventListener("dragstart",e=>{
-  dragged = e.target.dataset.card;
-});
-canvas.addEventListener("dragover",e=>e.preventDefault());
-canvas.addEventListener("drop",e=>{
-  if(!dragged) return;
-  const c = baseCards[dragged];
-  if(elixir < c.cost) return;
-  elixir -= c.cost;
-
-  const rect = canvas.getBoundingClientRect();
-  troops.push({
-    x:e.clientX-rect.left,
-    y:e.clientY-rect.top,
-    team:"player",
-    emoji:c.emoji,
-    hp:c.hp*(1+0.1*(cardLevels[dragged]-1)),
-    dmg:c.dmg,
-    speed:c.speed
-  });
-
-  deck.push(dragged);
-  hand.shift();
-  hand.push(deck.shift());
-  drawHand();
-  dragged = null;
-});
+function createUnit(name,x,y,team){
+  const c=cards[name];
+  return {
+    name,emoji:c.emoji,team,
+    x,y,hp:c.hp*levels[name],
+    dmg:c.dmg*levels[name],
+    speed:c.speed,
+    target:null
+  };
+}
 
 /**********************
-  GAME LOOP
+  LOOP
 **********************/
 function loop(){
-  ctx.clearRect(0,0,900,520);
-
-  // River
-  ctx.fillStyle="#0284c7";
-  ctx.fillRect(0,240,900,40);
-
-  // Bridges
-  ctx.fillStyle="#8b4513";
-  ctx.fillRect(235,240,50,40);
-  ctx.fillRect(615,240,50,40);
-
-  troops.forEach(t=>{
-    t.y += t.team==="player" ? -t.speed : t.speed;
-    ctx.font="30px serif";
-    ctx.fillText(t.emoji,t.x,t.y);
-  });
-
-  towers.forEach(t=>{
-    ctx.font="34px serif";
-    ctx.fillText(t.emoji,t.x,t.y);
-  });
-
-  elixirFill.style.width = (elixir/10*100)+"%";
+  drawMap();
+  updateUnits();
+  drawUnits();
+  drawTowers();
+  updateHUD();
   requestAnimationFrame(loop);
 }
 loop();
 
 /**********************
-  TIMERS
+  MAP
 **********************/
-setInterval(()=>{
-  if(elixir < 10) elixir++;
-  drawHand();
-},1000);
+function drawMap(){
+  const a=arenas.find(x=>x.id===currentArena);
+  ctx.fillStyle=a.color;
+  ctx.fillRect(0,0,900,520);
 
-setInterval(()=>{
-  if(timeLeft>0){ timeLeft--; updateTimerUI(); }
-},1000);
+  ctx.fillStyle="#2563eb";
+  ctx.fillRect(0,240,900,40);
+
+  ctx.fillStyle="#92400e";
+  ctx.fillRect(250,240,60,40);
+  ctx.fillRect(590,240,60,40);
+}
+
+/**********************
+  HUD
+**********************/
+function updateHUD(){
+  score.innerText=`👑 ${scoreP} - ${scoreE}`;
+  elixirFill.style.width=(elixir/10*100)+"%";
+}
+
+/**********************
+  DRAW
+**********************/
+function drawUnits(){
+  units.forEach(u=>{
+    ctx.font="26px serif";
+    ctx.fillText(u.emoji,u.x,u.y);
+  });
+}
+function drawTowers(){
+  towers.forEach(t=>{
+    ctx.fillStyle=t.team==="player"?"purple":"red";
+    ctx.fillRect(t.x-20,t.y-20,40,40);
+  });
+}
+
+/**********************
+  UPDATE
+**********************/
+function updateUnits(){
+  units.forEach(u=>{
+    const enemies=(u.team==="player"?units.filter(e=>e.team==="enemy"):units.filter(e=>e.team==="player"));
+    if(!u.target || u.target.hp<=0){
+      u.target=enemies.sort((a,b)=>dist(u,a)-dist(u,b))[0];
+    }
+    if(u.target){
+      if(dist(u,u.target)<30){
+        u.target.hp-=u.dmg*0.02;
+      }else{
+        u.y+=u.team==="player"?-u.speed:u.speed;
+      }
+    }
+  });
+  units=units.filter(u=>u.hp>0);
+}
+
+/**********************
+  UTILS
+**********************/
+function dist(a,b){
+  return Math.hypot(a.x-b.x,a.y-b.y);
+}
 
 /**********************
   START
 **********************/
-updateCrownsUI();
-showMenu();
+goMenu();
