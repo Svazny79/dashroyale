@@ -1,100 +1,37 @@
-body{
-  margin:0;
-  font-family:Arial, Helvetica, sans-serif;
-  background:#0f172a;
-  color:white;
-  text-align:center;
-}
+/* Dash Royale CSS Replacement - Full Layout Fix */
 
-.hidden{display:none}
+/* GENERAL */
+body{margin:0;font-family:sans-serif;background:#f5f7fb;}
+.hidden{display:none;}
 
-button{
-  padding:12px 22px;
-  font-size:18px;
-  border:none;
-  border-radius:10px;
-  margin:10px;
-  cursor:pointer;
-}
+/* MENU */
+#menu{padding:20px;text-align:center;}
+.arenaCard{display:inline-block;width:160px;margin:10px;padding:10px;border-radius:10px;background:#fff;box-shadow:0 4px 8px rgba(0,0,0,0.2);cursor:pointer;}
+.arenaCard.locked{opacity:0.5;pointer-events:none;}
+.arenaCard.active{border:3px solid gold;}
+.arenaMap{width:100%;height:80px;margin-bottom:5px;border-radius:6px;}
 
-#menu button{width:220px}
+/* GAME SCREEN */
+#gameScreen{position:relative;text-align:center;}
+#game{border:2px solid #000;background:#3bb273;display:block;margin:0 auto;}
+#hand{display:flex;justify-content:center;margin-top:10px;}
+.card{width:70px;height:90px;background:#fff;border-radius:10px;margin:0 5px;text-align:center;cursor:grab;box-shadow:0 2px 5px rgba(0,0,0,0.3);}
+.card .emoji{font-size:30px;display:block;margin-top:5px;}
+.card .name{font-size:10px;}
+.card .cost{font-size:12px;color:#2563eb;}
+#elixirContainer{width:200px;height:20px;background:#ddd;margin:10px auto;border-radius:10px;}
+#elixirFill{height:100%;background:purple;width:50%;border-radius:10px;}
+#timer{font-size:24px;font-weight:bold;margin:10px;}
+#score{font-size:24px;font-weight:bold;margin:10px;}
 
-#arenaContainer{
-  display:flex;
-  justify-content:center;
-  flex-wrap:wrap;
-}
-
-.arenaCard{
-  background:#1e293b;
-  width:220px;
-  margin:10px;
-  padding:10px;
-  border-radius:12px;
-  cursor:pointer;
-}
-.arenaCard.locked{opacity:.4}
-.arenaCard.active{border:3px solid gold}
-
-.arenaMap{
-  height:70px;
-  border-radius:8px;
-  margin-bottom:6px;
-}
-
-#gameScreen{background:#1e40af}
-
-#topHUD{
-  display:flex;
-  justify-content:space-between;
-  padding:10px 30px;
-  font-size:20px;
-}
-
-#elixirBar{
-  height:16px;
-  background:#312e81;
-  margin:8px auto;
-  width:90%;
-  border-radius:8px;
-}
-#elixirFill{
-  height:100%;
-  width:0%;
-  background:#a855f7;
-  border-radius:8px;
-}
-
-#hand{
-  display:flex;
-  justify-content:center;
-}
-
-.card{
-  width:90px;
-  height:120px;
-  background:#1e293b;
-  border-radius:12px;
-  margin:8px;
-  cursor:grab;
-  border:3px solid #475569;
-}
-.card .emoji{font-size:32px}
-.card .name{font-size:12px}
-.card .level{font-size:12px}
-.card .cost{font-size:14px}
-
-.bigCard{
-  width:140px;
-  background:#1e293b;
-  border-radius:12px;
-  margin:10px;
-  padding:10px;
-  border:3px solid #475569;
-}
-
-.level-red{border-color:#ef4444}
-.level-purple{
-  border-color:#a855f7;
-  box-shadow:0 0 12px #a855f7;
-}
+/* DECK BUILDER & UPGRADES */
+#deckScreen,#upgradeScreen{display:flex;flex-wrap:wrap;justify-content:center;}
+.bigCard{width:140px;height:180px;margin:10px;background:#fff;border-radius:12px;box-shadow:0 4px 8px rgba(0,0,0,0.2);text-align:center;padding:5px;}
+.bigCard .emoji{font-size:36px;margin-top:5px;}
+.bigCard .name{font-size:14px;font-weight:bold;margin-top:5px;}
+.bigCard .level{font-size:12px;margin-top:2px;}
+.bigCard .cost{font-size:12px;color:#2563eb;margin-top:2px;}
+.bigCard button{margin-top:5px;padding:4px 6px;border:none;background:#2563eb;color:#fff;border-radius:5px;cursor:pointer;}
+.bigCard.level-red{border:2px solid red;}
+.bigCard.level-purple{border:2px solid purple;}
+#activeDeck,#allCards,#upgradeContainer{display:flex;flex-wrap:wrap;justify-content:center;width:100%;padding:10px;}
