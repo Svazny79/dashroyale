@@ -1,145 +1,100 @@
 body{
   margin:0;
-  font-family: Arial, sans-serif;
+  font-family:Arial, Helvetica, sans-serif;
   background:#0f172a;
-  color:#fff;
+  color:white;
   text-align:center;
 }
 
-.hidden{display:none;}
+.hidden{display:none}
 
 button{
-  padding:12px 18px;
-  margin:8px;
-  cursor:pointer;
+  padding:12px 22px;
+  font-size:18px;
   border:none;
   border-radius:10px;
-  background:#3b82f6;
-  color:#fff;
-  font-weight:bold;
-  font-size:16px;
+  margin:10px;
+  cursor:pointer;
 }
 
-#menu button{
-  width:240px;
+#menu button{width:220px}
+
+#arenaContainer{
+  display:flex;
+  justify-content:center;
+  flex-wrap:wrap;
+}
+
+.arenaCard{
+  background:#1e293b;
+  width:220px;
+  margin:10px;
+  padding:10px;
+  border-radius:12px;
+  cursor:pointer;
+}
+.arenaCard.locked{opacity:.4}
+.arenaCard.active{border:3px solid gold}
+
+.arenaMap{
+  height:70px;
+  border-radius:8px;
+  margin-bottom:6px;
+}
+
+#gameScreen{background:#1e40af}
+
+#topHUD{
+  display:flex;
+  justify-content:space-between;
+  padding:10px 30px;
   font-size:20px;
 }
 
-/* ================= GAME HAND ================= */
-#cards{
-  position:absolute;
-  bottom:0;
-  left:50%;
-  transform:translateX(-50%);
+#elixirBar{
+  height:16px;
+  background:#312e81;
+  margin:8px auto;
+  width:90%;
+  border-radius:8px;
+}
+#elixirFill{
+  height:100%;
+  width:0%;
+  background:#a855f7;
+  border-radius:8px;
+}
+
+#hand{
   display:flex;
-  gap:14px;
-  padding:14px;
+  justify-content:center;
 }
 
 .card{
   width:90px;
   height:120px;
-  background:#1e40af;
-  border:3px solid #fff;
-  border-radius:14px;
-  display:flex;
-  flex-direction:column;
-  justify-content:space-between;
-  align-items:center;
-  padding:8px;
-  box-sizing:border-box;
-  cursor:pointer;
-}
-
-.card.ready{
-  border-color:#a855f7;
-}
-
-.card .emoji{font-size:34px;}
-.card .name{font-size:14px;font-weight:bold;}
-.card .cost{font-size:13px;color:#ddd;}
-
-/* ================= ELIXIR ================= */
-#elixir-bar{
-  position:absolute;
-  bottom:150px;
-  left:50%;
-  transform:translateX(-50%);
-  width:340px;
-  height:24px;
-  background:#ddd;
+  background:#1e293b;
   border-radius:12px;
-  overflow:hidden;
+  margin:8px;
+  cursor:grab;
+  border:3px solid #475569;
 }
+.card .emoji{font-size:32px}
+.card .name{font-size:12px}
+.card .level{font-size:12px}
+.card .cost{font-size:14px}
 
-#elixir-fill{
-  height:100%;
-  width:100%;
-  background:#a855f7;
-  transition:width 0.2s;
-}
-
-/* ================= TIMER / SCORE ================= */
-#timer,#score{
-  position:absolute;
-  top:10px;
-  font-size:24px;
-  font-weight:bold;
-}
-
-#timer{
-  left:50%;
-  transform:translateX(-50%);
-}
-
-#score{
-  right:20px;
-}
-
-/* ================= CARD GRIDS ================= */
-.card-container{
-  display:flex;
-  flex-wrap:wrap;
-  justify-content:center;
-  gap:14px;
-  margin:20px 0;
-}
-
-/* ================= BIG CARDS ================= */
 .bigCard{
-  width:150px;
-  height:190px;
-  background:#1e40af;
-  border:3px solid #fff;
-  border-radius:16px;
-  display:flex;
-  flex-direction:column;
-  justify-content:space-between;
-  align-items:center;
+  width:140px;
+  background:#1e293b;
+  border-radius:12px;
+  margin:10px;
   padding:10px;
-  box-sizing:border-box;
-  text-align:center;
+  border:3px solid #475569;
 }
 
-.bigCard .emoji{font-size:46px;}
-.bigCard .name{font-size:16px;font-weight:bold;}
-.bigCard .level{font-size:14px;}
-.bigCard .cost{font-size:14px;color:#e5e7eb;}
-
-.bigCard button{
-  margin-top:6px;
-  padding:6px 12px;
-  font-size:14px;
-  background:#22c55e;
-  border-radius:8px;
-}
-
-/* ================= LEVEL HIGHLIGHTS ================= */
-.level-red{
-  border-color:#ef4444 !important;
-}
-
+.level-red{border-color:#ef4444}
 .level-purple{
-  border-color:#a855f7 !important;
-  box-shadow:0 0 14px #a855f7;
+  border-color:#a855f7;
+  box-shadow:0 0 12px #a855f7;
 }
