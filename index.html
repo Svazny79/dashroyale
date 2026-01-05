@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dash Royale</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,42 +11,52 @@
 <!-- MENU -->
 <div id="menu">
   <h1>Dash Royale</h1>
-  <button onclick="startGame()">Play</button>
-  <button onclick="showDeckBuilder()">Deck Builder</button>
-  <button onclick="showUpgradeScreen()">Upgrades</button>
-  <div id="set-time-menu">
-    <span>Set Time:</span>
-    <button onclick="setTime(120)">2 min</button>
-    <button onclick="setTime(300)">5 min</button>
-    <button onclick="setTime(600)">10 min</button>
-  </div>
-  <div id="crownCount">Crowns: 0 👑</div>
+  <div id="crownCount">👑 0</div>
+
+  <h2>Arenas</h2>
+  <div id="arenaContainer"></div>
+
+  <button onclick="startGame()">⚔️ Battle</button>
+  <button onclick="openDeck()">🃏 Deck</button>
+  <button onclick="openUpgrades()">⬆️ Upgrades</button>
 </div>
 
-<!-- GAME SCREEN -->
+<!-- GAME -->
 <div id="gameScreen" class="hidden">
+  <div id="topHUD">
+    <div id="timer"></div>
+    <div id="score">👑 0 - 0</div>
+  </div>
+
   <canvas id="game" width="900" height="520"></canvas>
-  <div id="cards"></div>
-  <div id="timer"></div>
-  <div id="score"></div>
-  <div id="elixir-bar"><div id="elixir-fill"></div></div>
+
+  <div id="elixirBar">
+    <div id="elixirFill"></div>
+  </div>
+
+  <div id="hand"></div>
+
+  <button class="backBtn" onclick="goMenu()">Back</button>
 </div>
 
-<!-- DECK BUILDER SCREEN -->
+<!-- DECK BUILDER -->
 <div id="deckScreen" class="hidden">
-  <h2>All Cards</h2>
-  <div id="allCards" class="card-container"></div>
-  <h2>Active Deck (max 8)</h2>
-  <div id="activeDeck" class="card-container"></div>
-  <button onclick="saveDeck()">Save Deck</button>
-  <button onclick="showMenu()">Back</button>
+  <h2>Deck Builder</h2>
+  <h3>Your Deck (8)</h3>
+  <div id="activeDeck"></div>
+
+  <h3>Available Cards</h3>
+  <div id="allCards"></div>
+
+  <button onclick="saveDeck()">Save</button>
+  <button onclick="goMenu()">Back</button>
 </div>
 
-<!-- UPGRADE SCREEN -->
+<!-- UPGRADES -->
 <div id="upgradeScreen" class="hidden">
   <h2>Upgrades</h2>
-  <div id="upgradeContainer" class="card-container"></div>
-  <button onclick="showMenu()">Back</button>
+  <div id="upgradeContainer"></div>
+  <button onclick="goMenu()">Back</button>
 </div>
 
 <script src="script.js"></script>
