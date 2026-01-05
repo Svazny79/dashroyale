@@ -1,37 +1,44 @@
-/* Dash Royale CSS Replacement - Full Layout Fix */
+/*
+  Dash Royale - Full Replacement with Persistent State & Set Time Buttons
+*/
 
-/* GENERAL */
-body{margin:0;font-family:sans-serif;background:#f5f7fb;}
-.hidden{display:none;}
+/*********************
+  SAVE / LOAD
+*********************/
+if(!localStorage.getItem("crowns")) localStorage.setItem("crowns","0");
+if(!localStorage.getItem("arena")) localStorage.setItem("arena","1");
+if(!localStorage.getItem("deck")) localStorage.setItem("deck",JSON.stringify(["knight","archer","giant","goblin"]));
+if(!localStorage.getItem("levels")) {
+  const initLevels={};
+  Object.keys(cards).forEach(c=>initLevels[c]=1);
+  localStorage.setItem("levels",JSON.stringify(initLevels));
+}
 
-/* MENU */
-#menu{padding:20px;text-align:center;}
-.arenaCard{display:inline-block;width:160px;margin:10px;padding:10px;border-radius:10px;background:#fff;box-shadow:0 4px 8px rgba(0,0,0,0.2);cursor:pointer;}
-.arenaCard.locked{opacity:0.5;pointer-events:none;}
-.arenaCard.active{border:3px solid gold;}
-.arenaMap{width:100%;height:80px;margin-bottom:5px;border-radius:6px;}
+let crowns = Number(localStorage.getItem("crowns"));
+let currentArena = Number(localStorage.getItem("arena"));
+let deck = JSON.parse(localStorage.getItem("deck"));
+let levels = JSON.parse(localStorage.getItem("levels"));
+let gameInterval = null;
+let selectedTime = Number(localStorage.getItem("selectedTime")) || 180;
 
-/* GAME SCREEN */
-#gameScreen{position:relative;text-align:center;}
-#game{border:2px solid #000;background:#3bb273;display:block;margin:0 auto;}
-#hand{display:flex;justify-content:center;margin-top:10px;}
-.card{width:70px;height:90px;background:#fff;border-radius:10px;margin:0 5px;text-align:center;cursor:grab;box-shadow:0 2px 5px rgba(0,0,0,0.3);}
-.card .emoji{font-size:30px;display:block;margin-top:5px;}
-.card .name{font-size:10px;}
-.card .cost{font-size:12px;color:#2563eb;}
-#elixirContainer{width:200px;height:20px;background:#ddd;margin:10px auto;border-radius:10px;}
-#elixirFill{height:100%;background:purple;width:50%;border-radius:10px;}
-#timer{font-size:24px;font-weight:bold;margin:10px;}
-#score{font-size:24px;font-weight:bold;margin:10px;}
+function save(){
+  localStorage.setItem("crowns",crowns);
+  localStorage.setItem("arena",currentArena);
+  localStorage.setItem("deck",JSON.stringify(deck));
+  localStorage.setItem("levels",JSON.stringify(levels));
+  localStorage.setItem("selectedTime",selectedTime);
+}
 
-/* DECK BUILDER & UPGRADES */
-#deckScreen,#upgradeScreen{display:flex;flex-wrap:wrap;justify-content:center;}
-.bigCard{width:140px;height:180px;margin:10px;background:#fff;border-radius:12px;box-shadow:0 4px 8px rgba(0,0,0,0.2);text-align:center;padding:5px;}
-.bigCard .emoji{font-size:36px;margin-top:5px;}
-.bigCard .name{font-size:14px;font-weight:bold;margin-top:5px;}
-.bigCard .level{font-size:12px;margin-top:2px;}
-.bigCard .cost{font-size:12px;color:#2563eb;margin-top:2px;}
-.bigCard button{margin-top:5px;padding:4px 6px;border:none;background:#2563eb;color:#fff;border-radius:5px;cursor:pointer;}
-.bigCard.level-red{border:2px solid red;}
-.bigCard.level-purple{border:2px solid purple;}
-#activeDeck,#allCards,#upgradeContainer{display:flex;flex-wrap:wrap;justify-content:center;width:100%;padding:10px;}
+/*********************
+  SET TIME BUTTONS
+*********************/
+function setGameTime(seconds){
+  selectedTime = seconds;
+  save();
+  startTimer(selectedTime);
+}
+
+/*********************
+  INITIALIZE UI
+*********************/
+goMenu(); // redraw arenas and home screen immediately on load
