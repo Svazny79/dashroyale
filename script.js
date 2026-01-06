@@ -1,6 +1,6 @@
 /**********************************************************
- * DASH ROYALE – CORE GAME SCRIPT
- * All logic lives here (as requested)
+ * DASH ROYALE – COMPLETE SCRIPT
+ * All logic + save/load + towers + projectiles + AI
  **********************************************************/
 
 /* ===================== DOM ===================== */
@@ -35,6 +35,7 @@ const MAX_ELIXIR = 10;
 
 let draggingCard = null;
 let units = [];
+let projectiles = [];
 
 /* ===================== CARDS ===================== */
 const baseCards = {
@@ -73,49 +74,43 @@ function backToMenu(){
   menuScreen.classList.remove("hidden");
 }
 
-function openDeckBuilder(){
-  menuScreen.classList.add("hidden");
-  deckBuilderScreen.classList.remove("hidden");
-  renderDeckBuilder();
-}
-
-function openUpgrades(){
-  menuScreen.classList.add("hidden");
-  upgradeScreen.classList.remove("hidden");
-  renderUpgrades();
-}
-
 /* ===================== TIMER ===================== */
 function setGameTime(t){
   gameTime = t;
+  updateTimer();
 }
 
 function startTimer(){
   clearInterval(timerInterval);
   timerInterval = setInterval(()=>{
     gameTime--;
-    timerEl.innerText =
-      Math.floor(gameTime/60)+":"+(gameTime%60).toString().padStart(2,"0");
+    updateTimer();
     if(gameTime<=0) endGame();
   },1000);
+}
+
+function updateTimer(){
+  timerEl.innerText =
+    Math.floor(gameTime/60)+":"+(gameTime%60).toString().padStart(2,"0");
 }
 
 /* ===================== GAME RESET ===================== */
 function resetGame(){
   units = [];
+  projectiles = [];
   elixir = MAX_ELIXIR;
   updateElixir();
 
   playerTowers = [
-    {x:200,y:400,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:false},
-    {x:700,y:400,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:false},
-    {x:450,y:470,hp:KING_HP,max:KING_HP, enemy:false, king:true}
+    {x:200,y:400,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:false, king:false, cooldown:0},
+    {x:700,y:400,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:false, king:false, cooldown:0},
+    {x:450,y:470,hp:KING_HP,max:KING_HP, enemy:false, king:true, cooldown:0}
   ];
 
   enemyTowers = [
-    {x:200,y:120,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:true},
-    {x:700,y:120,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:true},
-    {x:450,y:60,hp:KING_HP,max:KING_HP, enemy:true, king:true}
+    {x:200,y:120,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:true, king:false, cooldown:0},
+    {x:700,y:120,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:true, king:false, cooldown:0},
+    {x:450,y:60,hp:KING_HP,max:KING_HP, enemy:true, king:true, cooldown:0}
   ];
 
   drawHand();
@@ -219,11 +214,33 @@ function gameLoop(){
   drawTowers(playerTowers);
   drawTowers(enemyTowers);
 
+  // Units
   units.forEach(u=>{
     u.y += u.enemy ? u.speed : -u.speed;
     drawUnit(u);
     handleCombat(u);
   });
+
+  // Projectiles
+  projectiles.forEach(p=>{
+    p.x += p.vx;
+    p.y += p.vy;
+    ctx.fillStyle = p.enemy ? "#ef4444" : "#9333ea";
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,5,0,Math.PI*2);
+    ctx.fill();
+
+    if(Math.abs(p.x-p.target.x)<15 && Math.abs(p.y-p.target.y)<15){
+      p.target.hp -= p.dmg;
+      p.hit = true;
+    }
+  });
+
+  projectiles = projectiles.filter(p=>!p.hit);
+
+  // Towers fire
+  fireTowers(playerTowers);
+  fireTowers(enemyTowers);
 
   units = units.filter(u=>u.hp>0);
   requestAnimationFrame(gameLoop);
@@ -278,6 +295,31 @@ function handleCombat(u){
   });
 }
 
+/* ===================== TOWER FIRING ===================== */
+function fireTowers(arr){
+  arr.forEach(t=>{
+    if(t.cooldown>0) { t.cooldown--; return; }
+    let targets = units.filter(u=>u.enemy!==t.enemy);
+    if(targets.length===0) return;
+    let nearest = targets.reduce((a,b)=>{
+      const da=Math.hypot(a.x-t.x,a.y-t.y);
+      const db=Math.hypot(b.x-t.x,b.y-t.y);
+      return da<db?a:b;
+    });
+    projectiles.push({
+      x:t.x,
+      y:t.y,
+      vx:(nearest.x-t.x)*0.05,
+      vy:(nearest.y-t.y)*0.05,
+      target:nearest,
+      dmg:50,
+      enemy:t.enemy,
+      hit:false
+    });
+    t.cooldown = 60; // frames between shots
+  });
+}
+
 /* ===================== END GAME ===================== */
 function endGame(winner){
   clearInterval(timerInterval);
@@ -289,6 +331,7 @@ function endGame(winner){
   }
   scoreEl.innerText=`👑 ${playerScore} - ${enemyScore}`;
   crownDisplay.innerText=`👑 Crowns: ${crowns}`;
+  saveProgress();
   backToMenu();
 }
 
@@ -331,6 +374,7 @@ function renderDeckBuilder(){
 }
 
 function saveDeck(){
+  saveProgress();
   backToMenu();
 }
 
@@ -353,8 +397,30 @@ function renderUpgrades(){
         cardLevels[name]++;
         crownDisplay.innerText=`👑 Crowns: ${crowns}`;
         renderUpgrades();
+        saveProgress();
       }
     };
     upgradeGrid.appendChild(div);
   });
 }
+
+/* ================= SAVE & LOAD ================= */
+function saveProgress(){
+  localStorage.setItem("dash_crowns", crowns);
+  localStorage.setItem("dash_levels", JSON.stringify(cardLevels));
+  localStorage.setItem("dash_deck", JSON.stringify(activeDeck));
+  localStorage.setItem("dash_time", gameTime);
+}
+
+function loadProgress(){
+  crowns = Number(localStorage.getItem("dash_crowns")) || 0;
+  cardLevels = JSON.parse(localStorage.getItem("dash_levels")) || cardLevels;
+  activeDeck = JSON.parse(localStorage.getItem("dash_deck")) || activeDeck;
+  gameTime = Number(localStorage.getItem("dash_time")) || gameTime;
+
+  crownDisplay.innerText = `👑 Crowns: ${crowns}`;
+}
+
+/* ================= INIT ================= */
+loadProgress();
+drawHand();
