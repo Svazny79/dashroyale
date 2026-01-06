@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dash Royale</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -13,11 +13,9 @@
   <h1>⚔️ Dash Royale ⚔️</h1>
   <div id="crownCount">Crowns: 0 👑</div>
 
-  <div class="menu-buttons">
-    <button onclick="startGame()">▶ PLAY</button>
-    <button onclick="showDeckBuilder()">🃏 DECK BUILDER</button>
-    <button onclick="showUpgradeScreen()">⬆ UPGRADES</button>
-  </div>
+  <button onclick="startGame()">▶ PLAY</button>
+  <button onclick="showDeckBuilder()">🃏 Deck Builder</button>
+  <button onclick="showUpgradeScreen()">⬆ Upgrades</button>
 
   <div class="time-select">
     <button onclick="setTime(120)">2 MIN</button>
@@ -36,32 +34,23 @@
 
   <canvas id="game" width="900" height="520"></canvas>
 
-  <div class="elixir-bar">
-    <div id="elixir-fill"></div>
-  </div>
-
+  <!-- HAND AT BOTTOM -->
   <div id="cards"></div>
 </div>
 
 <!-- DECK BUILDER -->
 <div id="deckScreen" class="hidden">
   <h2>🃏 Deck Builder</h2>
-
-  <h3>Active Deck (8)</h3>
   <div id="activeDeck" class="card-grid"></div>
-
-  <h3>All Cards</h3>
   <div id="allCards" class="card-grid"></div>
-
-  <button class="bigBtn" onclick="saveDeck()">💾 Save Deck</button>
-  <button class="bigBtn" onclick="showMenu()">⬅ Back</button>
+  <button onclick="showMenu()">⬅ Back</button>
 </div>
 
 <!-- UPGRADES -->
 <div id="upgradeScreen" class="hidden">
   <h2>⬆ Upgrades</h2>
   <div id="upgradeContainer" class="card-grid"></div>
-  <button class="bigBtn" onclick="showMenu()">⬅ Back</button>
+  <button onclick="showMenu()">⬅ Back</button>
 </div>
 
 <script src="script.js"></script>
