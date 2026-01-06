@@ -1,6 +1,6 @@
 /**********************************************************
- * DASH ROYALE – FINAL EMOJI VERSION v2
- * Towers = emojis, 4-card hand, Admin, working deck/upgrades
+ * DASH ROYALE – FULL WORKING SCRIPT
+ * All features integrated
  **********************************************************/
 
 /* ===================== DOM ===================== */
@@ -198,7 +198,8 @@ function placeCard(name,x,y){
     maxHp:c.hp * (1 + lvl*0.15),
     dmg:c.dmg * (1 + lvl*0.15),
     speed:c.speed,
-    enemy:false
+    enemy:false,
+    target:null
   });
 }
 
@@ -218,7 +219,8 @@ setInterval(()=>{
     maxHp:c.hp,
     dmg:c.dmg,
     speed:c.speed,
-    enemy:true
+    enemy:true,
+    target:null
   });
 },3500);
 
@@ -232,9 +234,10 @@ function gameLoop(){
   drawTowers(enemyTowers);
 
   units.forEach(u=>{
-    u.y += u.enemy ? u.speed : -u.speed;
+    updateUnitTarget(u);
+    moveUnit(u);
     drawUnit(u);
-    handleCombat(u);
+    attackTarget(u);
   });
 
   projectiles.forEach(p=>{
@@ -250,20 +253,58 @@ function gameLoop(){
       p.hit = true;
     }
   });
-
   projectiles = projectiles.filter(p=>!p.hit);
+
   fireTowers(playerTowers);
   fireTowers(enemyTowers);
+
   units = units.filter(u=>u.hp>0);
 
   requestAnimationFrame(gameLoop);
+}
+
+/* ===================== UNIT LOGIC ===================== */
+function updateUnitTarget(u){
+  // Target nearest enemy unit first
+  const enemies = units.filter(other=>other.enemy!==u.enemy);
+  const allTargets = [...enemies, ...(u.enemy?playerTowers:enemyTowers)];
+  if(allTargets.length===0) { u.target=null; return; }
+  u.target = allTargets.reduce((a,b)=>{
+    const da=Math.hypot(a.x-u.x,a.y-u.y);
+    const db=Math.hypot(b.x-u.x,b.y-u.y);
+    return da<db?a:b;
+  });
+}
+
+function moveUnit(u){
+  if(!u.target) return;
+  const dx = u.target.x - u.x;
+  const dy = u.target.y - u.y;
+  const dist = Math.hypot(dx,dy);
+  if(dist>20){
+    u.x += dx/dist*u.speed;
+    u.y += dy/dist*u.speed;
+  }
+}
+
+function attackTarget(u){
+  if(!u.target) return;
+  const dx = u.target.x - u.x;
+  const dy = u.target.y - u.y;
+  const dist = Math.hypot(dx,dy);
+  if(dist<=20){
+    u.target.hp -= u.dmg*0.02;
+    if(u.target.hp<=0){
+      if(u.target.king) endGame(u.enemy?"enemy":"player");
+      u.target=null;
+    }
+  }
 }
 
 /* ===================== DRAWING ===================== */
 function drawArena(){
   ctx.fillStyle="#2563eb";
   ctx.fillRect(0,250,canvas.width,40); // river
-
   ctx.fillStyle="#8b5a2b";
   ctx.fillRect(280,250,40,40); // left bridge
   ctx.fillRect(580,250,40,40); // right bridge
@@ -286,17 +327,6 @@ function drawTowers(arr){
 function drawUnit(u){
   ctx.font="26px Arial";
   ctx.fillText(u.emoji,u.x-12,u.y+12);
-}
-
-/* ===================== COMBAT ===================== */
-function handleCombat(u){
-  const targets = u.enemy ? playerTowers : enemyTowers;
-  targets.forEach(t=>{
-    if(Math.abs(u.x-t.x)<30 && Math.abs(u.y-t.y)<30){
-      t.hp -= u.dmg*0.02;
-      if(t.hp<=0 && t.king) endGame(u.enemy ? "enemy" : "player");
-    }
-  });
 }
 
 /* ===================== TOWER FIRING ===================== */
@@ -336,17 +366,16 @@ function endGame(winner){
   backToMenu();
 }
 
-/* ===================== DECK BUILDER ===================== */
+/* ===================== DECK BUILDER & UPGRADES ===================== */
 function renderDeckBuilder(){
-  allCardsDiv.innerHTML="";
-  activeDeckDiv.innerHTML="";
-
+  allCardsDiv.innerHTML = "";
+  activeDeckDiv.innerHTML = "";
   Object.keys(baseCards).forEach(name=>{
     const c=baseCards[name], lvl=cardLevels[name];
     const div=document.createElement("div");
     div.className="bigCard";
-    if(lvl>=5)div.classList.add("level-purple");
-    else if(lvl>=3)div.classList.add("level-red");
+    if(lvl>=5) div.classList.add("level-purple");
+    else if(lvl>=3) div.classList.add("level-red");
     div.innerHTML=`<div class="emoji">${c.emoji}</div>
                    <div class="name">${name}</div>
                    <div class="level">Lvl ${lvl}</div>`;
@@ -354,6 +383,7 @@ function renderDeckBuilder(){
       if(activeDeck.length<8 && !activeDeck.includes(name)){
         activeDeck.push(name);
         renderDeckBuilder();
+        saveProgress();
       }
     };
     allCardsDiv.appendChild(div);
@@ -367,36 +397,34 @@ function renderDeckBuilder(){
                    <div class="name">${name}</div>
                    <div class="level">IN DECK</div>`;
     div.onclick=()=>{
-      activeDeck=activeDeck.filter(n=>n!==name);
+      activeDeck = activeDeck.filter(n=>n!==name);
       renderDeckBuilder();
+      saveProgress();
     };
     activeDeckDiv.appendChild(div);
   });
 }
 
-function saveDeck(){ saveProgress(); backToMenu(); }
-
-/* ===================== UPGRADES ===================== */
 function renderUpgrades(){
   upgradeGrid.innerHTML="";
   Object.keys(baseCards).forEach(name=>{
-    const lvl=cardLevels[name];
-    const div=document.createElement("div");
+    const lvl = cardLevels[name];
+    const div = document.createElement("div");
     div.className="bigCard";
-    if(lvl>=5)div.classList.add("level-purple");
-    else if(lvl>=3)div.classList.add("level-red");
+    if(lvl>=5) div.classList.add("level-purple");
+    else if(lvl>=3) div.classList.add("level-red");
     div.innerHTML=`<div class="emoji">${baseCards[name].emoji}</div>
                    <div class="name">${name}</div>
                    <div class="level">Lvl ${lvl}</div>
                    <button>Upgrade (${lvl*3} 👑)</button>`;
     div.querySelector("button").onclick=()=>{
-      if(crowns>=lvl*3){
-        crowns-=lvl*3;
+      if(crowns >= lvl*3){
+        crowns -= lvl*3;
         cardLevels[name]++;
         crownDisplay.innerText=`👑 Crowns: ${crowns}`;
         renderUpgrades();
         saveProgress();
-      } else { alert("Not enough crowns!"); }
+      } else alert("Not enough crowns!");
     };
     upgradeGrid.appendChild(div);
   });
@@ -413,9 +441,8 @@ function saveProgress(){
 function loadProgress(){
   crowns = Number(localStorage.getItem("dash_crowns")) || 0;
   cardLevels = JSON.parse(localStorage.getItem("dash_levels")) || cardLevels;
-  activeDeck = JSON.parse(localStorage.getItem("dash_deck")) || activeDeck;
-  gameTime = Number(localStorage.getItem("dash_time")) || gameTime;
-
+  activeDeck = JSON.parse(localStorage.getItem("dash_deck")) || Object.keys(baseCards);
+  gameTime = Number(localStorage.getItem("dash_time")) || 180;
   crownDisplay.innerText = `👑 Crowns: ${crowns}`;
 }
 
