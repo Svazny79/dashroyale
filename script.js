@@ -1,5 +1,5 @@
 /**********************************************************
- * DASH ROYALE – FINAL EMOJI VERSION
+ * DASH ROYALE – FINAL EMOJI VERSION v2
  * Towers = emojis, 4-card hand, Admin, working deck/upgrades
  **********************************************************/
 
@@ -27,6 +27,7 @@ const menuButtonsDiv = document.querySelector(".menuButtons");
 /* ===================== GAME STATE ===================== */
 let gameTime = 180;
 let timerInterval;
+let gameActive = false;
 
 let crowns = 0;
 let playerScore = 0;
@@ -38,8 +39,7 @@ const MAX_ELIXIR = 10;
 let draggingCard = null;
 let units = [];
 let projectiles = [];
-
-let handIndex = 0; // For cycling 4-card hand
+let handIndex = 0;
 
 /* ===================== CARDS ===================== */
 const baseCards = {
@@ -68,6 +68,7 @@ let playerTowers, enemyTowers;
 function startGame(){
   menuScreen.classList.add("hidden");
   gameScreen.classList.remove("hidden");
+  gameActive = true;
   resetGame();
 }
 
@@ -76,6 +77,7 @@ function backToMenu(){
   deckBuilderScreen.classList.add("hidden");
   upgradeScreen.classList.add("hidden");
   menuScreen.classList.remove("hidden");
+  gameActive = false;
 }
 
 /* ===================== TIMER ===================== */
@@ -87,6 +89,7 @@ function setGameTime(t){
 function startTimer(){
   clearInterval(timerInterval);
   timerInterval = setInterval(()=>{
+    if(!gameActive) return;
     gameTime--;
     updateTimer();
     if(gameTime<=0) endGame();
@@ -107,15 +110,15 @@ function resetGame(){
   updateElixir();
 
   playerTowers = [
-    {x:200,y:400,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:false, king:false, emoji:"🟪", cooldown:0},
-    {x:700,y:400,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:false, king:false, emoji:"🟪", cooldown:0},
-    {x:450,y:470,hp:KING_HP,max:KING_HP, enemy:false, king:true, emoji:"🟪", cooldown:0}
+    {x:200,y:400,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:false, king:false, emoji:"🏰", cooldown:0},
+    {x:700,y:400,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:false, king:false, emoji:"🏰", cooldown:0},
+    {x:450,y:470,hp:KING_HP,max:KING_HP, enemy:false, king:true, emoji:"👑", cooldown:0}
   ];
 
   enemyTowers = [
-    {x:200,y:120,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:true, king:false, emoji:"🟥", cooldown:0},
-    {x:700,y:120,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:true, king:false, emoji:"🟥", cooldown:0},
-    {x:450,y:60,hp:KING_HP,max:KING_HP, enemy:true, king:true, emoji:"🟥", cooldown:0}
+    {x:200,y:120,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:true, king:false, emoji:"🏰", cooldown:0},
+    {x:700,y:120,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:true, king:false, emoji:"🏰", cooldown:0},
+    {x:450,y:60,hp:KING_HP,max:KING_HP, enemy:true, king:true, emoji:"👑", cooldown:0}
   ];
 
   drawHand();
@@ -125,7 +128,7 @@ function resetGame(){
 
 /* ===================== ELIXIR ===================== */
 setInterval(()=>{
-  if(gameScreen.classList.contains("hidden")) return;
+  if(!gameActive) return;
   elixir = Math.min(MAX_ELIXIR, elixir + 0.1);
   updateElixir();
 },100);
@@ -137,7 +140,6 @@ function updateElixir(){
 /* ===================== HAND ===================== */
 function drawHand(){
   cardHand.innerHTML = "";
-  // Only 4 cards at a time
   for(let i=0;i<4;i++){
     let idx = (handIndex + i)%activeDeck.length;
     const name = activeDeck[idx];
@@ -202,7 +204,7 @@ function placeCard(name,x,y){
 
 /* ===================== ENEMY AI ===================== */
 setInterval(()=>{
-  if(gameScreen.classList.contains("hidden")) return;
+  if(!gameActive) return;
   const names = Object.keys(baseCards);
   const name = names[Math.floor(Math.random()*names.length)];
   const c = baseCards[name];
@@ -222,20 +224,19 @@ setInterval(()=>{
 
 /* ===================== GAME LOOP ===================== */
 function gameLoop(){
+  if(!gameActive) return;
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
   drawArena();
   drawTowers(playerTowers);
   drawTowers(enemyTowers);
 
-  // Units
   units.forEach(u=>{
     u.y += u.enemy ? u.speed : -u.speed;
     drawUnit(u);
     handleCombat(u);
   });
 
-  // Projectiles
   projectiles.forEach(p=>{
     p.x += p.vx;
     p.y += p.vy;
@@ -251,23 +252,21 @@ function gameLoop(){
   });
 
   projectiles = projectiles.filter(p=>!p.hit);
-
-  // Towers fire
   fireTowers(playerTowers);
   fireTowers(enemyTowers);
-
   units = units.filter(u=>u.hp>0);
+
   requestAnimationFrame(gameLoop);
 }
 
 /* ===================== DRAWING ===================== */
 function drawArena(){
   ctx.fillStyle="#2563eb";
-  ctx.fillRect(0,250,canvas.width,40);
+  ctx.fillRect(0,250,canvas.width,40); // river
 
   ctx.fillStyle="#8b5a2b";
-  ctx.fillRect(280,250,40,40);
-  ctx.fillRect(580,250,40,40);
+  ctx.fillRect(280,250,40,40); // left bridge
+  ctx.fillRect(580,250,40,40); // right bridge
 }
 
 function drawTowers(arr){
@@ -276,12 +275,7 @@ function drawTowers(arr){
     ctx.fillText(t.emoji,t.x-12,t.y+12);
 
     ctx.fillStyle = t.enemy ? "#ef4444" : "#9333ea";
-    ctx.fillRect(
-      t.x-25,
-      t.y-35,
-      50*(t.hp/t.max),
-      6
-    );
+    ctx.fillRect(t.x-25, t.y-35, 50*(t.hp/t.max), 6);
 
     ctx.fillStyle="white";
     ctx.font="12px Arial";
@@ -300,11 +294,7 @@ function handleCombat(u){
   targets.forEach(t=>{
     if(Math.abs(u.x-t.x)<30 && Math.abs(u.y-t.y)<30){
       t.hp -= u.dmg*0.02;
-      if(t.hp<=0){
-        if(t.king){
-          endGame(u.enemy ? "enemy" : "player");
-        }
-      }
+      if(t.hp<=0 && t.king) endGame(u.enemy ? "enemy" : "player");
     }
   });
 }
@@ -337,12 +327,9 @@ function fireTowers(arr){
 /* ===================== END GAME ===================== */
 function endGame(winner){
   clearInterval(timerInterval);
-  if(winner==="player"){
-    playerScore+=3;
-    crowns+=3;
-  } else if(winner==="enemy"){
-    enemyScore+=3;
-  }
+  gameActive=false;
+  if(winner==="player"){ playerScore+=3; crowns+=3; }
+  else if(winner==="enemy"){ enemyScore+=3; }
   scoreEl.innerText=`👑 ${playerScore} - ${enemyScore}`;
   crownDisplay.innerText=`👑 Crowns: ${crowns}`;
   saveProgress();
@@ -387,10 +374,7 @@ function renderDeckBuilder(){
   });
 }
 
-function saveDeck(){
-  saveProgress();
-  backToMenu();
-}
+function saveDeck(){ saveProgress(); backToMenu(); }
 
 /* ===================== UPGRADES ===================== */
 function renderUpgrades(){
@@ -412,7 +396,7 @@ function renderUpgrades(){
         crownDisplay.innerText=`👑 Crowns: ${crowns}`;
         renderUpgrades();
         saveProgress();
-      }
+      } else { alert("Not enough crowns!"); }
     };
     upgradeGrid.appendChild(div);
   });
@@ -441,8 +425,11 @@ adminBtn.innerText="Admin";
 adminBtn.className="bigButton";
 adminBtn.onclick = ()=>{
   const pwd = prompt("Enter admin password:");
-  if(pwd==="littlebrother6") alert("Admin access granted!");
-  else alert("Wrong password!");
+  if(pwd==="littlebrother6"){
+    const c = prompt("Set crowns:");
+    if(!isNaN(c)) { crowns=Number(c); crownDisplay.innerText=`👑 Crowns: ${crowns}`; saveProgress(); }
+    alert("Admin access granted!");
+  } else alert("Wrong password!");
 };
 menuButtonsDiv.appendChild(adminBtn);
 
