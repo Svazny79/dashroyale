@@ -1,354 +1,360 @@
-/**********************
-  GLOBAL ELEMENTS
-**********************/
-const menu = document.getElementById("menu");
+/**********************************************************
+ * DASH ROYALE – CORE GAME SCRIPT
+ * All logic lives here (as requested)
+ **********************************************************/
+
+/* ===================== DOM ===================== */
+const menuScreen = document.getElementById("menuScreen");
 const gameScreen = document.getElementById("gameScreen");
-const deckScreen = document.getElementById("deckScreen");
+const deckBuilderScreen = document.getElementById("deckBuilderScreen");
 const upgradeScreen = document.getElementById("upgradeScreen");
+
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+const cardHand = document.getElementById("cardHand");
+const elixirFill = document.getElementById("elixirFill");
+const timerEl = document.getElementById("timer");
+const scoreEl = document.getElementById("score");
+const crownDisplay = document.getElementById("crownDisplay");
 
 const allCardsDiv = document.getElementById("allCards");
 const activeDeckDiv = document.getElementById("activeDeck");
-const upgradeContainer = document.getElementById("upgradeContainer");
+const upgradeGrid = document.getElementById("upgradeGrid");
 
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+/* ===================== GAME STATE ===================== */
+let gameTime = 180;
+let timerInterval;
 
-const cardsDiv = document.getElementById("cards");
-const timerDiv = document.getElementById("timer");
-const scoreDiv = document.getElementById("score");
-const elixirFill = document.getElementById("elixir-fill");
+let crowns = 0;
+let playerScore = 0;
+let enemyScore = 0;
 
-/**********************
-  MENU NAV
-**********************/
-function hideAll(){
-  menu.classList.add("hidden");
-  gameScreen.classList.add("hidden");
-  deckScreen.classList.add("hidden");
-  upgradeScreen.classList.add("hidden");
-}
+let elixir = 10;
+const MAX_ELIXIR = 10;
 
-function showMenu(){
-  hideAll();
-  menu.classList.remove("hidden");
-  updateCrownsUI();
-}
+let draggingCard = null;
+let units = [];
 
-function showDeckBuilder(){
-  hideAll();
-  deckScreen.classList.remove("hidden");
-  renderDeckBuilder();
-}
+/* ===================== CARDS ===================== */
+const baseCards = {
+  Knight: { emoji:"🗡️", cost:3, hp:700, dmg:80, speed:0.6 },
+  Archer: { emoji:"🏹", cost:3, hp:350, dmg:100, speed:0.7 },
+  Giant:  { emoji:"🗿", cost:5, hp:2000, dmg:120, speed:0.35 },
+  MiniPekka:{ emoji:"🤖", cost:4, hp:900, dmg:200, speed:0.6 },
+  Wizard: { emoji:"🧙", cost:5, hp:500, dmg:160, speed:0.55 },
+  Skeleton:{ emoji:"💀", cost:1, hp:120, dmg:45, speed:0.9 },
+  Valkyrie:{ emoji:"🪓", cost:4, hp:1200, dmg:130, speed:0.5 },
+  Prince: { emoji:"🐎", cost:5, hp:1500, dmg:220, speed:0.7 }
+};
 
-function showUpgradeScreen(){
-  hideAll();
-  upgradeScreen.classList.remove("hidden");
-  drawUpgradeScreen();
-}
+let cardLevels = {};
+Object.keys(baseCards).forEach(c => cardLevels[c] = 1);
 
+let activeDeck = Object.keys(baseCards).slice(0, 8);
+
+/* ===================== TOWERS ===================== */
+const PRINCESS_HP = 2352;
+const KING_HP = 3096;
+
+let playerTowers, enemyTowers;
+
+/* ===================== NAVIGATION ===================== */
 function startGame(){
-  hideAll();
+  menuScreen.classList.add("hidden");
   gameScreen.classList.remove("hidden");
   resetGame();
 }
 
-/**********************
-  TIME
-**********************/
-let timeLeft = 180;
-function setTime(t){ timeLeft = t; updateTimerUI(); }
-function updateTimerUI(){
-  timerDiv.innerText =
-    Math.floor(timeLeft/60)+":"+String(timeLeft%60).padStart(2,"0");
+function backToMenu(){
+  gameScreen.classList.add("hidden");
+  deckBuilderScreen.classList.add("hidden");
+  upgradeScreen.classList.add("hidden");
+  menuScreen.classList.remove("hidden");
 }
 
-/**********************
-  CROWNS
-**********************/
-let crowns = Number(localStorage.getItem("crowns")) || 0;
-function updateCrownsUI(){
-  document.getElementById("crownCount").innerText = `Crowns: ${crowns} 👑`;
-}
-function addCrowns(n){
-  crowns += n;
-  localStorage.setItem("crowns", crowns);
-  updateCrownsUI();
+function openDeckBuilder(){
+  menuScreen.classList.add("hidden");
+  deckBuilderScreen.classList.remove("hidden");
+  renderDeckBuilder();
 }
 
-/**********************
-  CARDS DATA
-**********************/
-const baseCards = {
-  knight:{emoji:"🗡️",hp:300,dmg:25,speed:1,cost:3},
-  archer:{emoji:"🏹",hp:170,dmg:18,speed:1.2,cost:2},
-  giant:{emoji:"🗿",hp:650,dmg:35,speed:0.6,cost:5},
-  wizard:{emoji:"🪄",hp:260,dmg:32,speed:0.9,cost:4},
-  goblin:{emoji:"👺",hp:120,dmg:14,speed:1.6,cost:2},
-  skeleton:{emoji:"💀",hp:70,dmg:10,speed:1.8,cost:1},
-  prince:{emoji:"🐎",hp:320,dmg:30,speed:1.4,cost:4},
-  miniPekka:{emoji:"🤖",hp:280,dmg:45,speed:1.0,cost:4},
-  healer:{emoji:"💉",hp:200,dmg:0,speed:0.8,cost:3},
-  balloon:{emoji:"🎈",hp:150,dmg:60,speed:0.7,cost:5}
-};
+function openUpgrades(){
+  menuScreen.classList.add("hidden");
+  upgradeScreen.classList.remove("hidden");
+  renderUpgrades();
+}
 
-let cardLevels = JSON.parse(localStorage.getItem("cardLevels")) || {};
-Object.keys(baseCards).forEach(c=>{
-  if(!cardLevels[c]) cardLevels[c] = 1;
-});
+/* ===================== TIMER ===================== */
+function setGameTime(t){
+  gameTime = t;
+}
 
-/**********************
-  DECK
-**********************/
-let deck = JSON.parse(localStorage.getItem("deck")) || Object.keys(baseCards).slice(0,8);
-let activeDeck = [...deck];
+function startTimer(){
+  clearInterval(timerInterval);
+  timerInterval = setInterval(()=>{
+    gameTime--;
+    timerEl.innerText =
+      Math.floor(gameTime/60)+":"+(gameTime%60).toString().padStart(2,"0");
+    if(gameTime<=0) endGame();
+  },1000);
+}
 
-/**********************
-  DECK BUILDER
-**********************/
-function renderDeckBuilder(){
-  allCardsDiv.innerHTML = "";
-  activeDeckDiv.innerHTML = "";
+/* ===================== GAME RESET ===================== */
+function resetGame(){
+  units = [];
+  elixir = MAX_ELIXIR;
+  updateElixir();
 
-  Object.keys(baseCards).forEach(name=>{
-    const lvl = cardLevels[name];
+  playerTowers = [
+    {x:200,y:400,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:false},
+    {x:700,y:400,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:false},
+    {x:450,y:470,hp:KING_HP,max:KING_HP, enemy:false, king:true}
+  ];
+
+  enemyTowers = [
+    {x:200,y:120,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:true},
+    {x:700,y:120,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:true},
+    {x:450,y:60,hp:KING_HP,max:KING_HP, enemy:true, king:true}
+  ];
+
+  drawHand();
+  startTimer();
+  requestAnimationFrame(gameLoop);
+}
+
+/* ===================== ELIXIR ===================== */
+setInterval(()=>{
+  if(gameScreen.classList.contains("hidden")) return;
+  elixir = Math.min(MAX_ELIXIR, elixir + 0.1);
+  updateElixir();
+},100);
+
+function updateElixir(){
+  elixirFill.style.width = (elixir / MAX_ELIXIR * 100) + "%";
+}
+
+/* ===================== HAND ===================== */
+function drawHand(){
+  cardHand.innerHTML = "";
+  activeDeck.forEach(name=>{
     const c = baseCards[name];
-    const card = document.createElement("div");
-    card.className = "bigCard";
+    const lvl = cardLevels[name];
 
-    if(lvl >= 5) card.classList.add("level-purple");
-    else if(lvl >= 3) card.classList.add("level-red");
+    const div = document.createElement("div");
+    div.className = "card";
+    if(lvl>=5) div.classList.add("level-purple");
+    else if(lvl>=3) div.classList.add("level-red");
 
-    card.innerHTML = `
+    div.innerHTML = `
       <div class="emoji">${c.emoji}</div>
-      <div class="name">${name.toUpperCase()}</div>
-      <div class="level">Level ${lvl}</div>
-      <div class="cost">Cost: ${c.cost}</div>
+      <div class="name">${name}</div>
+      <div class="level">Lvl ${lvl}</div>
+      <div class="cost">${c.cost}</div>
     `;
 
-    card.onclick = ()=>{
-      if(activeDeck.length < 8 && !activeDeck.includes(name)){
+    div.onmousedown = () => draggingCard = name;
+    div.onclick = () => placeCard(name, canvas.width/2, canvas.height-80);
+
+    cardHand.appendChild(div);
+  });
+}
+
+/* ===================== PLACEMENT ===================== */
+canvas.addEventListener("mouseup", e=>{
+  if(!draggingCard) return;
+  const rect = canvas.getBoundingClientRect();
+  placeCard(
+    draggingCard,
+    e.clientX - rect.left,
+    e.clientY - rect.top
+  );
+  draggingCard = null;
+});
+
+function placeCard(name,x,y){
+  const c = baseCards[name];
+  if(elixir < c.cost) return;
+  elixir -= c.cost;
+  updateElixir();
+
+  const lvl = cardLevels[name];
+  units.push({
+    name,
+    emoji:c.emoji,
+    x,y,
+    hp:c.hp * (1 + lvl*0.15),
+    maxHp:c.hp * (1 + lvl*0.15),
+    dmg:c.dmg * (1 + lvl*0.15),
+    speed:c.speed,
+    enemy:false
+  });
+}
+
+/* ===================== ENEMY AI ===================== */
+setInterval(()=>{
+  if(gameScreen.classList.contains("hidden")) return;
+  const names = Object.keys(baseCards);
+  const name = names[Math.floor(Math.random()*names.length)];
+  const c = baseCards[name];
+
+  units.push({
+    name,
+    emoji:c.emoji,
+    x:Math.random()*canvas.width,
+    y:80,
+    hp:c.hp,
+    maxHp:c.hp,
+    dmg:c.dmg,
+    speed:c.speed,
+    enemy:true
+  });
+},3500);
+
+/* ===================== GAME LOOP ===================== */
+function gameLoop(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  drawArena();
+  drawTowers(playerTowers);
+  drawTowers(enemyTowers);
+
+  units.forEach(u=>{
+    u.y += u.enemy ? u.speed : -u.speed;
+    drawUnit(u);
+    handleCombat(u);
+  });
+
+  units = units.filter(u=>u.hp>0);
+  requestAnimationFrame(gameLoop);
+}
+
+/* ===================== DRAWING ===================== */
+function drawArena(){
+  ctx.fillStyle="#2563eb";
+  ctx.fillRect(0,250,canvas.width,40);
+
+  ctx.fillStyle="#8b5a2b";
+  ctx.fillRect(280,250,40,40);
+  ctx.fillRect(580,250,40,40);
+}
+
+function drawTowers(arr){
+  arr.forEach(t=>{
+    ctx.fillStyle="#555";
+    ctx.fillRect(t.x-25,t.y-25,50,50);
+
+    ctx.fillStyle = t.enemy ? "#ef4444" : "#9333ea";
+    ctx.fillRect(
+      t.x-25,
+      t.y-35,
+      50*(t.hp/t.max),
+      6
+    );
+
+    ctx.fillStyle="white";
+    ctx.font="12px Arial";
+    ctx.fillText(Math.floor(t.hp),t.x-20,t.y-40);
+  });
+}
+
+function drawUnit(u){
+  ctx.font="26px Arial";
+  ctx.fillText(u.emoji,u.x-12,u.y+12);
+}
+
+/* ===================== COMBAT ===================== */
+function handleCombat(u){
+  const targets = u.enemy ? playerTowers : enemyTowers;
+  targets.forEach(t=>{
+    if(Math.abs(u.x-t.x)<30 && Math.abs(u.y-t.y)<30){
+      t.hp -= u.dmg*0.02;
+      if(t.hp<=0){
+        if(t.king){
+          endGame(u.enemy ? "enemy" : "player");
+        }
+      }
+    }
+  });
+}
+
+/* ===================== END GAME ===================== */
+function endGame(winner){
+  clearInterval(timerInterval);
+  if(winner==="player"){
+    playerScore+=3;
+    crowns+=3;
+  } else if(winner==="enemy"){
+    enemyScore+=3;
+  }
+  scoreEl.innerText=`👑 ${playerScore} - ${enemyScore}`;
+  crownDisplay.innerText=`👑 Crowns: ${crowns}`;
+  backToMenu();
+}
+
+/* ===================== DECK BUILDER ===================== */
+function renderDeckBuilder(){
+  allCardsDiv.innerHTML="";
+  activeDeckDiv.innerHTML="";
+
+  Object.keys(baseCards).forEach(name=>{
+    const c=baseCards[name], lvl=cardLevels[name];
+    const div=document.createElement("div");
+    div.className="bigCard";
+    if(lvl>=5)div.classList.add("level-purple");
+    else if(lvl>=3)div.classList.add("level-red");
+    div.innerHTML=`<div class="emoji">${c.emoji}</div>
+                   <div class="name">${name}</div>
+                   <div class="level">Lvl ${lvl}</div>`;
+    div.onclick=()=>{
+      if(activeDeck.length<8 && !activeDeck.includes(name)){
         activeDeck.push(name);
         renderDeckBuilder();
       }
     };
-
-    allCardsDiv.appendChild(card);
+    allCardsDiv.appendChild(div);
   });
 
   activeDeck.forEach(name=>{
-    const lvl = cardLevels[name];
-    const c = baseCards[name];
-    const card = document.createElement("div");
-    card.className = "bigCard";
-
-    if(lvl >= 5) card.classList.add("level-purple");
-    else if(lvl >= 3) card.classList.add("level-red");
-
-    card.innerHTML = `
-      <div class="emoji">${c.emoji}</div>
-      <div class="name">${name.toUpperCase()}</div>
-      <div class="level">Level ${lvl}</div>
-      <div class="cost">IN DECK</div>
-    `;
-
-    card.onclick = ()=>{
-      activeDeck = activeDeck.filter(n=>n!==name);
+    const c=baseCards[name], lvl=cardLevels[name];
+    const div=document.createElement("div");
+    div.className="bigCard";
+    div.innerHTML=`<div class="emoji">${c.emoji}</div>
+                   <div class="name">${name}</div>
+                   <div class="level">IN DECK</div>`;
+    div.onclick=()=>{
+      activeDeck=activeDeck.filter(n=>n!==name);
       renderDeckBuilder();
     };
-
-    activeDeckDiv.appendChild(card);
+    activeDeckDiv.appendChild(div);
   });
 }
 
 function saveDeck(){
-  if(activeDeck.length !== 8){
-    alert("Deck must have 8 cards");
-    return;
-  }
-  deck = [...activeDeck];
-  localStorage.setItem("deck", JSON.stringify(deck));
-  alert("Deck Saved!");
+  backToMenu();
 }
 
-/**********************
-  UPGRADES
-**********************/
-function drawUpgradeScreen(){
-  upgradeContainer.innerHTML = "";
-
+/* ===================== UPGRADES ===================== */
+function renderUpgrades(){
+  upgradeGrid.innerHTML="";
   Object.keys(baseCards).forEach(name=>{
-    const lvl = cardLevels[name];
-    const c = baseCards[name];
-    const card = document.createElement("div");
-    card.className = "bigCard";
-
-    if(lvl >= 5) card.classList.add("level-purple");
-    else if(lvl >= 3) card.classList.add("level-red");
-
-    const cost = lvl * 3;
-
-    card.innerHTML = `
-      <div class="emoji">${c.emoji}</div>
-      <div class="name">${name.toUpperCase()}</div>
-      <div class="level">Level ${lvl}</div>
-      <div class="cost">${cost} 👑</div>
-    `;
-
-    const btn = document.createElement("button");
-    btn.innerText = "Upgrade";
-    btn.onclick = ()=>{
-      if(crowns < cost){ alert("Not enough crowns"); return; }
-      crowns -= cost;
-      cardLevels[name]++;
-      localStorage.setItem("cardLevels", JSON.stringify(cardLevels));
-      localStorage.setItem("crowns", crowns);
-      drawUpgradeScreen();
-      updateCrownsUI();
+    const lvl=cardLevels[name];
+    const div=document.createElement("div");
+    div.className="bigCard";
+    if(lvl>=5)div.classList.add("level-purple");
+    else if(lvl>=3)div.classList.add("level-red");
+    div.innerHTML=`<div class="emoji">${baseCards[name].emoji}</div>
+                   <div class="name">${name}</div>
+                   <div class="level">Lvl ${lvl}</div>
+                   <button>Upgrade (${lvl*3} 👑)</button>`;
+    div.querySelector("button").onclick=()=>{
+      if(crowns>=lvl*3){
+        crowns-=lvl*3;
+        cardLevels[name]++;
+        crownDisplay.innerText=`👑 Crowns: ${crowns}`;
+        renderUpgrades();
+      }
     };
-
-    card.appendChild(btn);
-    upgradeContainer.appendChild(card);
+    upgradeGrid.appendChild(div);
   });
 }
-
-/**********************
-  GAME STATE
-**********************/
-let elixir = 10;
-let troops = [];
-let towers = [];
-let hand = [];
-let playerScore = 0;
-let enemyScore = 0;
-let gameOver = false;
-
-/**********************
-  TOWERS
-**********************/
-function resetTowers(){
-  towers = [
-    {x:260,y:430,hp:1000,maxHp:1000,team:"player",emoji:"🏰"},
-    {x:640,y:430,hp:1000,maxHp:1000,team:"player",emoji:"🏰"},
-    {x:450,y:480,hp:1800,maxHp:1800,team:"player",emoji:"👑",king:true},
-    {x:260,y:80,hp:1000,maxHp:1000,team:"enemy",emoji:"🏰"},
-    {x:640,y:80,hp:1000,maxHp:1000,team:"enemy",emoji:"🏰"},
-    {x:450,y:40,hp:1800,maxHp:1800,team:"enemy",emoji:"👑",king:true}
-  ];
-}
-
-/**********************
-  GAME RESET
-**********************/
-function resetGame(){
-  elixir = 10;
-  troops = [];
-  playerScore = enemyScore = 0;
-  gameOver = false;
-  resetTowers();
-  hand = deck.slice(0,4);
-  drawHand();
-  updateTimerUI();
-  scoreDiv.innerText = "👑 0 - 0";
-}
-
-/**********************
-  HAND UI
-**********************/
-function drawHand(){
-  cardsDiv.innerHTML = "";
-  hand.forEach(name=>{
-    const c = baseCards[name];
-    const div = document.createElement("div");
-    div.className = "card";
-    if(elixir >= c.cost) div.classList.add("ready");
-    div.draggable = true;
-    div.dataset.card = name;
-    div.innerHTML = `
-      <div class="emoji">${c.emoji}</div>
-      <div class="name">${name}</div>
-      <div class="cost">${c.cost}</div>
-    `;
-    cardsDiv.appendChild(div);
-  });
-}
-
-/**********************
-  DRAG & DROP
-**********************/
-let dragged = null;
-cardsDiv.addEventListener("dragstart",e=>{
-  dragged = e.target.dataset.card;
-});
-canvas.addEventListener("dragover",e=>e.preventDefault());
-canvas.addEventListener("drop",e=>{
-  if(!dragged) return;
-  const c = baseCards[dragged];
-  if(elixir < c.cost) return;
-  elixir -= c.cost;
-
-  const rect = canvas.getBoundingClientRect();
-  troops.push({
-    x:e.clientX-rect.left,
-    y:e.clientY-rect.top,
-    team:"player",
-    emoji:c.emoji,
-    hp:c.hp*(1+0.1*(cardLevels[dragged]-1)),
-    dmg:c.dmg,
-    speed:c.speed
-  });
-
-  deck.push(dragged);
-  hand.shift();
-  hand.push(deck.shift());
-  drawHand();
-  dragged = null;
-});
-
-/**********************
-  GAME LOOP
-**********************/
-function loop(){
-  ctx.clearRect(0,0,900,520);
-
-  // River
-  ctx.fillStyle="#0284c7";
-  ctx.fillRect(0,240,900,40);
-
-  // Bridges
-  ctx.fillStyle="#8b4513";
-  ctx.fillRect(235,240,50,40);
-  ctx.fillRect(615,240,50,40);
-
-  troops.forEach(t=>{
-    t.y += t.team==="player" ? -t.speed : t.speed;
-    ctx.font="30px serif";
-    ctx.fillText(t.emoji,t.x,t.y);
-  });
-
-  towers.forEach(t=>{
-    ctx.font="34px serif";
-    ctx.fillText(t.emoji,t.x,t.y);
-  });
-
-  elixirFill.style.width = (elixir/10*100)+"%";
-  requestAnimationFrame(loop);
-}
-loop();
-
-/**********************
-  TIMERS
-**********************/
-setInterval(()=>{
-  if(elixir < 10) elixir++;
-  drawHand();
-},1000);
-
-setInterval(()=>{
-  if(timeLeft>0){ timeLeft--; updateTimerUI(); }
-},1000);
-
-/**********************
-  START
-**********************/
-updateCrownsUI();
-showMenu();
