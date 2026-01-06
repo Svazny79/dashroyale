@@ -1,5 +1,5 @@
 /**********************************************************
- * DASH ROYALE – FULL SCRIPT WITH ARENAS
+ * DASH ROYALE – FULL SCRIPT WITH ARENAS & ANIMATIONS
  **********************************************************/
 
 /* ===================== DOM ===================== */
@@ -40,6 +40,7 @@ const MAX_ELIXIR = 10;
 let draggingCard = null;
 let units = [];
 let projectiles = [];
+let particles = [];
 let handIndex = 0;
 
 let currentArena = "Goblin Stadium";
@@ -50,12 +51,12 @@ const baseCards = {
   Knight: { emoji:"🗡️", cost:3, hp:700, dmg:80, speed:0.6, arena:"Goblin Stadium" },
   Archer: { emoji:"🏹", cost:3, hp:350, dmg:100, speed:0.7, arena:"Goblin Stadium" },
   Giant:  { emoji:"🗿", cost:5, hp:2000, dmg:120, speed:0.35, arena:"Goblin Stadium" },
-  MiniPekka:{ emoji:"🤖", cost:4, hp:900, dmg:200, speed:0.6, arena:"Barbarian Bowl" },
-  Wizard: { emoji:"🧙", cost:5, hp:500, dmg:160, speed:0.55, arena:"Barbarian Bowl" },
+  MiniPekka:{ emoji:"🤖", cost:4, hp:900, dmg:200, speed:0.6, arena:"Barbarian Bowl", effect:"slash" },
+  Wizard: { emoji:"🧙", cost:5, hp:500, dmg:160, speed:0.55, arena:"Barbarian Bowl", effect:"magic" },
   Skeleton:{ emoji:"💀", cost:1, hp:120, dmg:45, speed:0.9, arena:"Goblin Stadium" },
-  Valkyrie:{ emoji:"🪓", cost:4, hp:1200, dmg:130, speed:0.5, arena:"Barbarian Bowl" },
-  Prince: { emoji:"🐎", cost:5, hp:1500, dmg:220, speed:0.7, arena:"Barbarian Bowl" },
-  Fireball:{ emoji:"🔥", cost:4, hp:0, dmg:250, speed:1, arena:"Spell Valley" }
+  Valkyrie:{ emoji:"🪓", cost:4, hp:1200, dmg:130, speed:0.5, arena:"Barbarian Bowl", effect:"spin" },
+  Prince: { emoji:"🐎", cost:5, hp:1500, dmg:220, speed:0.7, arena:"Barbarian Bowl", effect:"charge" },
+  Fireball:{ emoji:"🔥", cost:4, hp:0, dmg:250, speed:1, arena:"Spell Valley", effect:"fire" }
 };
 
 let cardLevels = {};
@@ -65,10 +66,10 @@ let activeDeck = Object.keys(baseCards).filter(c=>baseCards[c].arena==="Goblin S
 
 /* ===================== ARENAS ===================== */
 const arenas = [
-  { name:"Goblin Stadium", cost:0, img:"images/goblin_small.png" },
-  { name:"Barbarian Bowl", cost:100, img:"images/barbarian_small.png" },
-  { name:"P.E.K.K.A's Playhouse", cost:300, img:"images/pekka_small.png" },
-  { name:"Spell Valley", cost:500, img:"images/spell_small.png" }
+  { name:"Goblin Stadium", cost:0, img:"images/goblin_small.png", bgColor:"#22c55e", river:false },
+  { name:"Barbarian Bowl", cost:100, img:"images/barbarian_small.png", bgColor:"#fde68a", river:false },
+  { name:"P.E.K.K.A's Playhouse", cost:300, img:"images/pekka_small.png", bgColor:"#a1a1aa", river:false },
+  { name:"Spell Valley", cost:500, img:"images/spell_small.png", bgColor:"#6366f1", river:true }
 ];
 
 /* ===================== TOWERS ===================== */
@@ -154,6 +155,7 @@ function updateTimer(){
 function resetGame(){
   units = [];
   projectiles = [];
+  particles = [];
   elixir = MAX_ELIXIR;
   handIndex = 0;
   updateElixir();
@@ -250,7 +252,8 @@ function placeCard(name,x,y){
     dmg:c.dmg * (1 + lvl*0.15),
     speed:c.speed,
     enemy:false,
-    target:null
+    target:null,
+    effect:c.effect
   });
 }
 
@@ -271,7 +274,8 @@ setInterval(()=>{
     dmg:c.dmg,
     speed:c.speed,
     enemy:true,
-    target:null
+    target:null,
+    effect:c.effect
   });
 },3500);
 
@@ -280,7 +284,7 @@ function gameLoop(){
   if(!gameActive) return;
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  drawArena();
+  drawArenaBackground();
   drawTowers(playerTowers);
   drawTowers(enemyTowers);
 
@@ -289,6 +293,7 @@ function gameLoop(){
     moveUnit(u);
     drawUnit(u);
     attackTarget(u);
+    drawCardEffect(u);
   });
 
   projectiles.forEach(p=>{
@@ -302,9 +307,22 @@ function gameLoop(){
     if(Math.abs(p.x-p.target.x)<15 && Math.abs(p.y-p.target.y)<15){
       p.target.hp -= p.dmg;
       p.hit = true;
+      spawnParticle(p.x,p.y,p.enemy?"#ef4444":"#9333ea");
     }
   });
   projectiles = projectiles.filter(p=>!p.hit);
+
+  // Update particles
+  particles.forEach(p=>{
+    p.x += p.vx;
+    p.y += p.vy;
+    p.alpha -= 0.03;
+    ctx.fillStyle = `rgba(${p.color},${p.alpha})`;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,3,0,Math.PI*2);
+    ctx.fill();
+  });
+  particles = particles.filter(p=>p.alpha>0);
 
   fireTowers(playerTowers);
   fireTowers(enemyTowers);
@@ -312,6 +330,59 @@ function gameLoop(){
   units = units.filter(u=>u.hp>0);
 
   requestAnimationFrame(gameLoop);
+}
+
+/* ===================== ANIMATIONS ===================== */
+function spawnParticle(x,y,color){
+  const rgb = color==="red" ? "239,68,68" : "147,51,234";
+  for(let i=0;i<5;i++){
+    particles.push({
+      x,y,
+      vx:(Math.random()-0.5)*2,
+      vy:(Math.random()-0.5)*2,
+      color:rgb,
+      alpha:1
+    });
+  }
+}
+
+function drawCardEffect(u){
+  if(!u.effect) return;
+  ctx.font="20px Arial";
+  switch(u.effect){
+    case "fire":
+      ctx.fillStyle="orange";
+      ctx.fillText("🔥", u.x-10, u.y-20);
+      break;
+    case "slash":
+      ctx.fillStyle="gray";
+      ctx.fillText("✂️", u.x-10, u.y-20);
+      break;
+    case "magic":
+      ctx.fillStyle="purple";
+      ctx.fillText("✨", u.x-10, u.y-20);
+      break;
+    case "spin":
+      ctx.fillStyle="brown";
+      ctx.fillText("🌀", u.x-10, u.y-20);
+      break;
+    case "charge":
+      ctx.fillStyle="red";
+      ctx.fillText("⚡", u.x-10, u.y-20);
+      break;
+  }
+}
+
+/* ===================== ARENA BACKGROUND ===================== */
+function drawArenaBackground(){
+  const arena = arenas.find(a=>a.name===currentArena);
+  ctx.fillStyle = arena.bgColor;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  if(arena.river){
+    ctx.fillStyle="#2563eb";
+    ctx.fillRect(0,canvas.height/2-20,canvas.width,40);
+    // Optional: animate waves
+  }
 }
 
 /* ===================== UNIT LOGIC ===================== */
@@ -352,14 +423,6 @@ function attackTarget(u){
 }
 
 /* ===================== DRAWING ===================== */
-function drawArena(){
-  ctx.fillStyle="#2563eb";
-  ctx.fillRect(0,250,canvas.width,40); // river
-  ctx.fillStyle="#8b5a2b";
-  ctx.fillRect(280,250,40,40); // left bridge
-  ctx.fillRect(580,250,40,40); // right bridge
-}
-
 function drawTowers(arr){
   arr.forEach(t=>{
     ctx.font="28px Arial";
@@ -431,58 +494,44 @@ function renderDeckBuilder(){
     div.innerHTML=`<div class="emoji">${c.emoji}</div>
                    <div class="name">${name}</div>
                    <div class="level">Lvl ${lvl}</div>`;
-    div.onclick=()=>{
-      if(activeDeck.length<8 && !activeDeck.includes(name)){
+    div.onclick = ()=>{
+      if(!activeDeck.includes(name)){
         activeDeck.push(name);
-        renderDeckBuilder();
-        saveProgress();
+        drawHand();
+      } else {
+        activeDeck = activeDeck.filter(n=>n!==name);
+        drawHand();
       }
-    };
-    allCardsDiv.appendChild(div);
-  });
-
-  activeDeck.forEach(name=>{
-    const c=baseCards[name], lvl=cardLevels[name];
-    const div=document.createElement("div");
-    div.className="bigCard";
-    div.innerHTML=`<div class="emoji">${c.emoji}</div>
-                   <div class="name">${name}</div>
-                   <div class="level">IN DECK</div>`;
-    div.onclick=()=>{
-      activeDeck = activeDeck.filter(n=>n!==name);
-      renderDeckBuilder();
       saveProgress();
+      renderDeckBuilder();
     };
-    activeDeckDiv.appendChild(div);
+    (activeDeck.includes(name)?activeDeckDiv:allCardsDiv).appendChild(div);
   });
 }
 
 function renderUpgrades(){
   upgradeGrid.innerHTML="";
   Object.keys(baseCards).forEach(name=>{
-    const lvl = cardLevels[name];
-    const div = document.createElement("div");
+    const c=baseCards[name];
+    const lvl=cardLevels[name];
+    const div=document.createElement("div");
     div.className="bigCard";
     if(lvl>=5) div.classList.add("level-purple");
     else if(lvl>=3) div.classList.add("level-red");
-    div.innerHTML=`<div class="emoji">${baseCards[name].emoji}</div>
+    div.innerHTML=`<div class="emoji">${c.emoji}</div>
                    <div class="name">${name}</div>
                    <div class="level">Lvl ${lvl}</div>
-                   <button>Upgrade (${lvl*3} 👑)</button>`;
+                   <button>Upgrade</button>`;
     div.querySelector("button").onclick=()=>{
-      if(crowns >= lvl*3){
-        crowns -= lvl*3;
-        cardLevels[name]++;
-        crownDisplay.innerText=`👑 Crowns: ${crowns}`;
-        renderUpgrades();
-        saveProgress();
-      } else alert("Not enough crowns!");
+      cardLevels[name]++;
+      saveProgress();
+      renderUpgrades();
     };
     upgradeGrid.appendChild(div);
   });
 }
 
-/* ================= SAVE & LOAD ================= */
+/* ===================== LOCAL STORAGE ===================== */
 function saveProgress(){
   localStorage.setItem("dash_crowns", crowns);
   localStorage.setItem("dash_levels", JSON.stringify(cardLevels));
@@ -502,7 +551,7 @@ function loadProgress(){
   crownDisplay.innerText = `👑 Crowns: ${crowns}`;
 }
 
-/* ================= ADMIN BUTTON ================= */
+/* ===================== ADMIN BUTTON ===================== */
 const adminBtn = document.createElement("button");
 adminBtn.innerText="Admin";
 adminBtn.className="bigButton";
@@ -516,6 +565,10 @@ adminBtn.onclick = ()=>{
 };
 menuButtonsDiv.appendChild(adminBtn);
 
-/* ================= INIT ================= */
+/* ===================== INIT ===================== */
 loadProgress();
 drawHand();
+renderDeckBuilder();
+renderUpgrades();
+renderArenaScreen();
+updateTimer();
