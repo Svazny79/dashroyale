@@ -1,6 +1,6 @@
 /**********************************************************
- * DASH ROYALE – COMPLETE SCRIPT
- * All logic + save/load + towers + projectiles + AI
+ * DASH ROYALE – FINAL EMOJI VERSION
+ * Towers = emojis, 4-card hand, Admin, working deck/upgrades
  **********************************************************/
 
 /* ===================== DOM ===================== */
@@ -22,6 +22,8 @@ const allCardsDiv = document.getElementById("allCards");
 const activeDeckDiv = document.getElementById("activeDeck");
 const upgradeGrid = document.getElementById("upgradeGrid");
 
+const menuButtonsDiv = document.querySelector(".menuButtons");
+
 /* ===================== GAME STATE ===================== */
 let gameTime = 180;
 let timerInterval;
@@ -36,6 +38,8 @@ const MAX_ELIXIR = 10;
 let draggingCard = null;
 let units = [];
 let projectiles = [];
+
+let handIndex = 0; // For cycling 4-card hand
 
 /* ===================== CARDS ===================== */
 const baseCards = {
@@ -52,7 +56,7 @@ const baseCards = {
 let cardLevels = {};
 Object.keys(baseCards).forEach(c => cardLevels[c] = 1);
 
-let activeDeck = Object.keys(baseCards).slice(0, 8);
+let activeDeck = Object.keys(baseCards);
 
 /* ===================== TOWERS ===================== */
 const PRINCESS_HP = 2352;
@@ -99,18 +103,19 @@ function resetGame(){
   units = [];
   projectiles = [];
   elixir = MAX_ELIXIR;
+  handIndex = 0;
   updateElixir();
 
   playerTowers = [
-    {x:200,y:400,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:false, king:false, cooldown:0},
-    {x:700,y:400,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:false, king:false, cooldown:0},
-    {x:450,y:470,hp:KING_HP,max:KING_HP, enemy:false, king:true, cooldown:0}
+    {x:200,y:400,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:false, king:false, emoji:"🟪", cooldown:0},
+    {x:700,y:400,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:false, king:false, emoji:"🟪", cooldown:0},
+    {x:450,y:470,hp:KING_HP,max:KING_HP, enemy:false, king:true, emoji:"🟪", cooldown:0}
   ];
 
   enemyTowers = [
-    {x:200,y:120,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:true, king:false, cooldown:0},
-    {x:700,y:120,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:true, king:false, cooldown:0},
-    {x:450,y:60,hp:KING_HP,max:KING_HP, enemy:true, king:true, cooldown:0}
+    {x:200,y:120,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:true, king:false, emoji:"🟥", cooldown:0},
+    {x:700,y:120,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:true, king:false, emoji:"🟥", cooldown:0},
+    {x:450,y:60,hp:KING_HP,max:KING_HP, enemy:true, king:true, emoji:"🟥", cooldown:0}
   ];
 
   drawHand();
@@ -132,7 +137,10 @@ function updateElixir(){
 /* ===================== HAND ===================== */
 function drawHand(){
   cardHand.innerHTML = "";
-  activeDeck.forEach(name=>{
+  // Only 4 cards at a time
+  for(let i=0;i<4;i++){
+    let idx = (handIndex + i)%activeDeck.length;
+    const name = activeDeck[idx];
     const c = baseCards[name];
     const lvl = cardLevels[name];
 
@@ -149,10 +157,14 @@ function drawHand(){
     `;
 
     div.onmousedown = () => draggingCard = name;
-    div.onclick = () => placeCard(name, canvas.width/2, canvas.height-80);
+    div.onclick = () => {
+      placeCard(name, canvas.width/2, canvas.height-80);
+      handIndex = (handIndex+1)%activeDeck.length;
+      drawHand();
+    };
 
     cardHand.appendChild(div);
-  });
+  }
 }
 
 /* ===================== PLACEMENT ===================== */
@@ -164,6 +176,8 @@ canvas.addEventListener("mouseup", e=>{
     e.clientX - rect.left,
     e.clientY - rect.top
   );
+  handIndex = (handIndex+1)%activeDeck.length;
+  drawHand();
   draggingCard = null;
 });
 
@@ -258,8 +272,8 @@ function drawArena(){
 
 function drawTowers(arr){
   arr.forEach(t=>{
-    ctx.fillStyle="#555";
-    ctx.fillRect(t.x-25,t.y-25,50,50);
+    ctx.font="28px Arial";
+    ctx.fillText(t.emoji,t.x-12,t.y+12);
 
     ctx.fillStyle = t.enemy ? "#ef4444" : "#9333ea";
     ctx.fillRect(
@@ -316,7 +330,7 @@ function fireTowers(arr){
       enemy:t.enemy,
       hit:false
     });
-    t.cooldown = 60; // frames between shots
+    t.cooldown = 60;
   });
 }
 
@@ -420,6 +434,17 @@ function loadProgress(){
 
   crownDisplay.innerText = `👑 Crowns: ${crowns}`;
 }
+
+/* ================= ADMIN BUTTON ================= */
+const adminBtn = document.createElement("button");
+adminBtn.innerText="Admin";
+adminBtn.className="bigButton";
+adminBtn.onclick = ()=>{
+  const pwd = prompt("Enter admin password:");
+  if(pwd==="littlebrother6") alert("Admin access granted!");
+  else alert("Wrong password!");
+};
+menuButtonsDiv.appendChild(adminBtn);
 
 /* ================= INIT ================= */
 loadProgress();
