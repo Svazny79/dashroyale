@@ -1,80 +1,60 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Dash Royale</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dash Royale</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- ================= MENU ================= -->
-<div id="menuScreen">
-  <h1>⚔️ Dash Royale ⚔️</h1>
-
+<!-- ====== MENU SCREEN ====== -->
+<div id="menuScreen" class="screen">
+  <h1>Dash Royale</h1>
+  <div class="menuButtons">
+    <button onclick="startGame()" class="bigButton">Play</button>
+    <button onclick="deckBuilderScreen.classList.remove('hidden'); menuScreen.classList.add('hidden');" class="bigButton">Deck Builder</button>
+    <button onclick="upgradeScreen.classList.remove('hidden'); menuScreen.classList.add('hidden');" class="bigButton">Upgrades</button>
+    <button onclick="renderArenaScreen(); arenaScreen.classList.remove('hidden'); menuScreen.classList.add('hidden');" class="bigButton">Arenas</button>
+  </div>
   <div id="crownDisplay">👑 Crowns: 0</div>
-
-  <div class="menuButtons">
-    <button onclick="startGame()">▶ PLAY</button>
-    <button onclick="openDeckBuilder()">🃏 Deck Builder</button>
-    <button onclick="openUpgrades()">⬆ Upgrades</button>
-  </div>
-
-  <h3>Set Time</h3>
-  <div class="menuButtons">
-    <button onclick="setGameTime(120)">2 MIN</button>
-    <button onclick="setGameTime(300)">5 MIN</button>
-    <button onclick="setGameTime(600)">10 MIN</button>
-  </div>
+  <div id="timer">Set Time</div>
 </div>
 
-<!-- ================= GAME ================= -->
-<div id="gameScreen" class="hidden">
-
-  <!-- TOP BAR -->
-  <div id="topBar">
-    <button onclick="backToMenu()">⬅ MENU</button>
-    <div id="timer">3:00</div>
-    <div id="score">👑 0 - 0</div>
+<!-- ====== GAME SCREEN ====== -->
+<div id="gameScreen" class="screen hidden">
+  <canvas id="gameCanvas" width="900" height="500"></canvas>
+  <div id="cardHand" class="hand"></div>
+  <div class="elixirBar">
+    <div id="elixirFill" class="fill"></div>
   </div>
-
-  <!-- GAME CANVAS -->
-  <canvas id="gameCanvas" width="900" height="520"></canvas>
-
-  <!-- ELIXIR -->
-  <div id="elixirBar">
-    <div id="elixirFill"></div>
-  </div>
-
-  <!-- CARD HAND (BOTTOM) -->
-  <div id="cardHand"></div>
+  <div id="score">👑 0 - 0</div>
+  <button onclick="backToMenu()" class="smallButton">Menu</button>
 </div>
 
-<!-- ================= DECK BUILDER ================= -->
-<div id="deckBuilderScreen" class="hidden">
-  <h2>🃏 Deck Builder</h2>
-
-  <h3>Your Deck (8 Cards)</h3>
-  <div id="activeDeck" class="cardGrid"></div>
-
+<!-- ====== DECK BUILDER ====== -->
+<div id="deckBuilderScreen" class="screen hidden">
+  <h2>Deck Builder</h2>
+  <div id="activeDeck" class="deckContainer"></div>
   <h3>All Cards</h3>
-  <div id="allCards" class="cardGrid"></div>
-
-  <button class="bigButton" onclick="saveDeck()">💾 Save Deck</button>
-  <button class="bigButton" onclick="backToMenu()">⬅ Back</button>
+  <div id="allCards" class="deckContainer"></div>
+  <button onclick="backToMenu()" class="smallButton">Back</button>
 </div>
 
-<!-- ================= UPGRADES ================= -->
-<div id="upgradeScreen" class="hidden">
-  <h2>⬆ Card Upgrades</h2>
-
-  <div id="upgradeGrid" class="cardGrid"></div>
-
-  <button class="bigButton" onclick="backToMenu()">⬅ Back</button>
+<!-- ====== UPGRADES ====== -->
+<div id="upgradeScreen" class="screen hidden">
+  <h2>Upgrades</h2>
+  <div id="upgradeGrid" class="deckContainer"></div>
+  <button onclick="backToMenu()" class="smallButton">Back</button>
 </div>
 
-<!-- ================= SCRIPT ================= -->
+<!-- ====== ARENAS ====== -->
+<div id="arenaScreen" class="screen hidden">
+  <h2>Arenas</h2>
+  <div id="arenaList" class="arenaContainer"></div>
+  <button onclick="backToMenu()" class="smallButton">Back</button>
+</div>
+
 <script src="script.js"></script>
-
 </body>
 </html>
