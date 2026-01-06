@@ -1,6 +1,5 @@
 /**********************************************************
- * DASH ROYALE – FULL WORKING SCRIPT
- * All features integrated
+ * DASH ROYALE – FULL SCRIPT WITH ARENAS
  **********************************************************/
 
 /* ===================== DOM ===================== */
@@ -8,6 +7,7 @@ const menuScreen = document.getElementById("menuScreen");
 const gameScreen = document.getElementById("gameScreen");
 const deckBuilderScreen = document.getElementById("deckBuilderScreen");
 const upgradeScreen = document.getElementById("upgradeScreen");
+const arenaScreen = document.getElementById("arenaScreen");
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -22,6 +22,7 @@ const allCardsDiv = document.getElementById("allCards");
 const activeDeckDiv = document.getElementById("activeDeck");
 const upgradeGrid = document.getElementById("upgradeGrid");
 
+const arenaListDiv = document.getElementById("arenaList");
 const menuButtonsDiv = document.querySelector(".menuButtons");
 
 /* ===================== GAME STATE ===================== */
@@ -41,22 +42,34 @@ let units = [];
 let projectiles = [];
 let handIndex = 0;
 
+let currentArena = "Goblin Stadium";
+let unlockedArenas = { "Goblin Stadium": true };
+
 /* ===================== CARDS ===================== */
 const baseCards = {
-  Knight: { emoji:"🗡️", cost:3, hp:700, dmg:80, speed:0.6 },
-  Archer: { emoji:"🏹", cost:3, hp:350, dmg:100, speed:0.7 },
-  Giant:  { emoji:"🗿", cost:5, hp:2000, dmg:120, speed:0.35 },
-  MiniPekka:{ emoji:"🤖", cost:4, hp:900, dmg:200, speed:0.6 },
-  Wizard: { emoji:"🧙", cost:5, hp:500, dmg:160, speed:0.55 },
-  Skeleton:{ emoji:"💀", cost:1, hp:120, dmg:45, speed:0.9 },
-  Valkyrie:{ emoji:"🪓", cost:4, hp:1200, dmg:130, speed:0.5 },
-  Prince: { emoji:"🐎", cost:5, hp:1500, dmg:220, speed:0.7 }
+  Knight: { emoji:"🗡️", cost:3, hp:700, dmg:80, speed:0.6, arena:"Goblin Stadium" },
+  Archer: { emoji:"🏹", cost:3, hp:350, dmg:100, speed:0.7, arena:"Goblin Stadium" },
+  Giant:  { emoji:"🗿", cost:5, hp:2000, dmg:120, speed:0.35, arena:"Goblin Stadium" },
+  MiniPekka:{ emoji:"🤖", cost:4, hp:900, dmg:200, speed:0.6, arena:"Barbarian Bowl" },
+  Wizard: { emoji:"🧙", cost:5, hp:500, dmg:160, speed:0.55, arena:"Barbarian Bowl" },
+  Skeleton:{ emoji:"💀", cost:1, hp:120, dmg:45, speed:0.9, arena:"Goblin Stadium" },
+  Valkyrie:{ emoji:"🪓", cost:4, hp:1200, dmg:130, speed:0.5, arena:"Barbarian Bowl" },
+  Prince: { emoji:"🐎", cost:5, hp:1500, dmg:220, speed:0.7, arena:"Barbarian Bowl" },
+  Fireball:{ emoji:"🔥", cost:4, hp:0, dmg:250, speed:1, arena:"Spell Valley" }
 };
 
 let cardLevels = {};
 Object.keys(baseCards).forEach(c => cardLevels[c] = 1);
 
-let activeDeck = Object.keys(baseCards);
+let activeDeck = Object.keys(baseCards).filter(c=>baseCards[c].arena==="Goblin Stadium");
+
+/* ===================== ARENAS ===================== */
+const arenas = [
+  { name:"Goblin Stadium", cost:0, img:"images/goblin_small.png" },
+  { name:"Barbarian Bowl", cost:100, img:"images/barbarian_small.png" },
+  { name:"P.E.K.K.A's Playhouse", cost:300, img:"images/pekka_small.png" },
+  { name:"Spell Valley", cost:500, img:"images/spell_small.png" }
+];
 
 /* ===================== TOWERS ===================== */
 const PRINCESS_HP = 2352;
@@ -76,8 +89,44 @@ function backToMenu(){
   gameScreen.classList.add("hidden");
   deckBuilderScreen.classList.add("hidden");
   upgradeScreen.classList.add("hidden");
+  arenaScreen.classList.add("hidden");
   menuScreen.classList.remove("hidden");
   gameActive = false;
+}
+
+/* ===================== ARENA SCREEN ===================== */
+function renderArenaScreen(){
+  arenaScreen.classList.remove("hidden");
+  arenaListDiv.innerHTML = "";
+  arenas.forEach(a=>{
+    const div = document.createElement("div");
+    div.className="arenaCard";
+    div.innerHTML = `
+      <img src="${a.img}" width="150"><br>
+      <b>${a.name}</b><br>
+      ${unlockedArenas[a.name] ? "Unlocked" : `Cost: ${a.cost} 👑`}
+    `;
+    const btn = document.createElement("button");
+    btn.innerText = unlockedArenas[a.name] ? "Select" : "Get";
+    btn.onclick = ()=>{
+      if(unlockedArenas[a.name]){
+        currentArena=a.name;
+        alert(a.name+" selected!");
+      } else if(crowns>=a.cost){
+        crowns -= a.cost;
+        unlockedArenas[a.name]=true;
+        currentArena=a.name;
+        crownDisplay.innerText=`👑 Crowns: ${crowns}`;
+        alert(a.name+" unlocked and selected!");
+        saveProgress();
+        renderArenaScreen();
+      } else {
+        alert("Not enough crowns!");
+      }
+    };
+    div.appendChild(btn);
+    arenaListDiv.appendChild(div);
+  });
 }
 
 /* ===================== TIMER ===================== */
@@ -121,6 +170,8 @@ function resetGame(){
     {x:450,y:60,hp:KING_HP,max:KING_HP, enemy:true, king:true, emoji:"👑", cooldown:0}
   ];
 
+  // Update activeDeck for selected arena
+  activeDeck = Object.keys(baseCards).filter(c=>unlockedArenas[baseCards[c].arena] || baseCards[c].arena===currentArena);
   drawHand();
   startTimer();
   requestAnimationFrame(gameLoop);
@@ -206,7 +257,7 @@ function placeCard(name,x,y){
 /* ===================== ENEMY AI ===================== */
 setInterval(()=>{
   if(!gameActive) return;
-  const names = Object.keys(baseCards);
+  const names = Object.keys(baseCards).filter(c=>baseCards[c].arena===currentArena || unlockedArenas[baseCards[c].arena]);
   const name = names[Math.floor(Math.random()*names.length)];
   const c = baseCards[name];
 
@@ -265,7 +316,6 @@ function gameLoop(){
 
 /* ===================== UNIT LOGIC ===================== */
 function updateUnitTarget(u){
-  // Target nearest enemy unit first
   const enemies = units.filter(other=>other.enemy!==u.enemy);
   const allTargets = [...enemies, ...(u.enemy?playerTowers:enemyTowers)];
   if(allTargets.length===0) { u.target=null; return; }
@@ -371,7 +421,9 @@ function renderDeckBuilder(){
   allCardsDiv.innerHTML = "";
   activeDeckDiv.innerHTML = "";
   Object.keys(baseCards).forEach(name=>{
-    const c=baseCards[name], lvl=cardLevels[name];
+    const c=baseCards[name];
+    if(c.arena!==currentArena && !unlockedArenas[c.arena]) return;
+    const lvl=cardLevels[name];
     const div=document.createElement("div");
     div.className="bigCard";
     if(lvl>=5) div.classList.add("level-purple");
@@ -435,6 +487,8 @@ function saveProgress(){
   localStorage.setItem("dash_crowns", crowns);
   localStorage.setItem("dash_levels", JSON.stringify(cardLevels));
   localStorage.setItem("dash_deck", JSON.stringify(activeDeck));
+  localStorage.setItem("dash_arenas", JSON.stringify(unlockedArenas));
+  localStorage.setItem("dash_arenaSelected", currentArena);
   localStorage.setItem("dash_time", gameTime);
 }
 
@@ -442,6 +496,8 @@ function loadProgress(){
   crowns = Number(localStorage.getItem("dash_crowns")) || 0;
   cardLevels = JSON.parse(localStorage.getItem("dash_levels")) || cardLevels;
   activeDeck = JSON.parse(localStorage.getItem("dash_deck")) || Object.keys(baseCards);
+  unlockedArenas = JSON.parse(localStorage.getItem("dash_arenas")) || {"Goblin Stadium": true};
+  currentArena = localStorage.getItem("dash_arenaSelected") || "Goblin Stadium";
   gameTime = Number(localStorage.getItem("dash_time")) || 180;
   crownDisplay.innerText = `👑 Crowns: ${crowns}`;
 }
