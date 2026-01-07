@@ -1,58 +1,54 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dash Royale</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <title>Dash Royale</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-<!-- ====== MENU SCREEN ====== -->
-<div id="menuScreen" class="screen">
+<header>
   <h1>Dash Royale</h1>
-  <div class="menuButtons">
-    <button onclick="startGame()" class="bigButton">Play</button>
-    <button onclick="deckBuilderScreen.classList.remove('hidden'); menuScreen.classList.add('hidden');" class="bigButton">Deck Builder</button>
-    <button onclick="upgradeScreen.classList.remove('hidden'); menuScreen.classList.add('hidden');" class="bigButton">Upgrades</button>
-    <button onclick="renderArenaScreen(); arenaScreen.classList.remove('hidden'); menuScreen.classList.add('hidden');" class="bigButton">Arenas</button>
-  </div>
-  <div id="crownDisplay">👑 Crowns: 0</div>
-  <div id="timer">Set Time</div>
+  <button id="adminBtn">ADMIN</button>
+</header>
+
+<div id="menu" class="screen">
+  <button onclick="showScreen('game')">▶ Play</button>
+  <button onclick="showScreen('deck')">🃏 Deck Builder</button>
+  <button onclick="showScreen('upgrades')">⬆ Upgrades</button>
+  <button onclick="showScreen('arenas')">🏟 Arenas</button>
 </div>
 
-<!-- ====== GAME SCREEN ====== -->
-<div id="gameScreen" class="screen hidden">
-  <canvas id="gameCanvas" width="900" height="500"></canvas>
-  <div id="cardHand" class="hand"></div>
-  <div class="elixirBar">
-    <div id="elixirFill" class="fill"></div>
+<div id="game" class="screen hidden">
+  <div id="topBar">
+    <span id="timer">Set Time</span>
+    <span id="score">👑 0 - 0</span>
   </div>
-  <div id="score">👑 0 - 0</div>
-  <button onclick="backToMenu()" class="smallButton">Menu</button>
+
+  <canvas id="battlefield" width="420" height="620"></canvas>
+
+  <div id="hand"></div>
+  <div id="elixirBar"><div id="elixirFill"></div></div>
+
+  <button onclick="showScreen('menu')">⬅ Home</button>
 </div>
 
-<!-- ====== DECK BUILDER ====== -->
-<div id="deckBuilderScreen" class="screen hidden">
+<div id="deck" class="screen hidden">
   <h2>Deck Builder</h2>
-  <div id="activeDeck" class="deckContainer"></div>
-  <h3>All Cards</h3>
-  <div id="allCards" class="deckContainer"></div>
-  <button onclick="backToMenu()" class="smallButton">Back</button>
+  <div id="deckCards"></div>
+  <button onclick="showScreen('menu')">⬅ Home</button>
 </div>
 
-<!-- ====== UPGRADES ====== -->
-<div id="upgradeScreen" class="screen hidden">
+<div id="upgrades" class="screen hidden">
   <h2>Upgrades</h2>
-  <div id="upgradeGrid" class="deckContainer"></div>
-  <button onclick="backToMenu()" class="smallButton">Back</button>
+  <div id="upgradeCards"></div>
+  <button onclick="showScreen('menu')">⬅ Home</button>
 </div>
 
-<!-- ====== ARENAS ====== -->
-<div id="arenaScreen" class="screen hidden">
+<div id="arenas" class="screen hidden">
   <h2>Arenas</h2>
-  <div id="arenaList" class="arenaContainer"></div>
-  <button onclick="backToMenu()" class="smallButton">Back</button>
+  <div id="arenaList"></div>
+  <button onclick="showScreen('menu')">⬅ Home</button>
 </div>
 
 <script src="script.js"></script>
