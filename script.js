@@ -1,25 +1,52 @@
 // ================== GLOBAL STATE ==================
 let crowns = 0;
 let elixir = 10;
-let currentScreen = "menu";
 let units = [];
+let currentScreen = "menu";
+let deck = [];
+let hand = [];
 let lastTime = 0;
 
 const canvas = document.getElementById("battlefield");
 const ctx = canvas.getContext("2d");
 
-// ================== DATA ==================
-const cards = [
-  { id: 1, name: "Knight", emoji: "🗡️", cost: 3, hp: 300, dmg: 40, speed: 0.4 },
-  { id: 2, name: "Archer", emoji: "🏹", cost: 3, hp: 200, dmg: 30, speed: 0.5 },
-  { id: 3, name: "Giant", emoji: "🗿", cost: 5, hp: 800, dmg: 60, speed: 0.25 },
-  { id: 4, name: "Wizard", emoji: "🪄", cost: 4, hp: 250, dmg: 50, speed: 0.4 },
+// ================== CARD DATA ==================
+const allCards = [
+  { id: 1, name: "Knight", emoji: "🗡️", cost: 3, hp: 300, dmg: 40, speed: 0.4, level: 1 },
+  { id: 2, name: "Archer", emoji: "🏹", cost: 3, hp: 200, dmg: 30, speed: 0.5, level: 1 },
+  { id: 3, name: "Giant", emoji: "🗿", cost: 5, hp: 800, dmg: 60, speed: 0.25, level: 1 },
+  { id: 4, name: "Wizard", emoji: "🪄", cost: 4, hp: 250, dmg: 50, speed: 0.4, level: 1 },
+  { id: 5, name: "Balloon", emoji: "🎈", cost: 5, hp: 350, dmg: 70, speed: 0.35, level: 1 },
+  { id: 6, name: "Healer", emoji: "💉", cost: 4, hp: 280, dmg: 20, speed: 0.4, level: 1 },
+  { id: 7, name: "Mini Pekka", emoji: "🤖", cost: 4, hp: 500, dmg: 90, speed: 0.45, level: 1 },
+  { id: 8, name: "Skeletons", emoji: "💀", cost: 1, hp: 120, dmg: 25, speed: 0.6, level: 1 }
 ];
 
-const arenas = [
-  { name: "Training Camp", unlocked: true },
-  { name: "Barbarian Bowl", unlocked: false }
-];
+// ================== SAVE / LOAD ==================
+function saveGame() {
+  localStorage.setItem("dashRoyaleSave", JSON.stringify({
+    crowns,
+    deck: deck.map(c => c.id),
+    cards: allCards.map(c => ({ id: c.id, level: c.level }))
+  }));
+}
+
+function loadGame() {
+  const save = JSON.parse(localStorage.getItem("dashRoyaleSave"));
+  if (!save) {
+    deck = allCards.slice(0, 8);
+    return;
+  }
+
+  crowns = save.crowns || 0;
+
+  save.cards.forEach(saved => {
+    const card = allCards.find(c => c.id === saved.id);
+    if (card) card.level = saved.level;
+  });
+
+  deck = save.deck.map(id => allCards.find(c => c.id === id));
+}
 
 // ================== SCREEN HANDLING ==================
 function showScreen(name) {
@@ -28,9 +55,8 @@ function showScreen(name) {
   currentScreen = name;
 
   if (name === "game") startGame();
-  if (name === "deck") renderDeck();
+  if (name === "deck") renderDeckBuilder();
   if (name === "upgrades") renderUpgrades();
-  if (name === "arenas") renderArenas();
 }
 
 // ================== ADMIN ==================
@@ -38,7 +64,8 @@ document.getElementById("adminBtn").onclick = () => {
   const pass = prompt("Admin Password:");
   if (pass === "littlebrother6") {
     crowns = parseInt(prompt("Set crowns:"), 10) || crowns;
-    alert("Crowns set to " + crowns);
+    saveGame();
+    alert("Crowns updated");
   }
 };
 
@@ -46,33 +73,28 @@ document.getElementById("adminBtn").onclick = () => {
 function startGame() {
   units = [];
   elixir = 10;
+  hand = deck.slice(0, 4);
   drawArena();
   renderHand();
   requestAnimationFrame(gameLoop);
 }
 
+// ================== ARENA ==================
 function drawArena() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Grass
   ctx.fillStyle = "#3cb371";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // River
   ctx.fillStyle = "#1e90ff";
   ctx.fillRect(0, 290, canvas.width, 40);
 
-  // Bridges
   ctx.fillStyle = "#8b4513";
   ctx.fillRect(90, 270, 60, 80);
   ctx.fillRect(270, 270, 60, 80);
 
-  // Towers (emoji)
   ctx.font = "32px Arial";
   ctx.fillText("🏰", 60, 560);
   ctx.fillText("🏰", 300, 560);
   ctx.fillText("👑", 185, 590);
-
   ctx.fillText("🏰", 60, 70);
   ctx.fillText("🏰", 300, 70);
   ctx.fillText("👑", 185, 40);
@@ -80,10 +102,10 @@ function drawArena() {
 
 // ================== HAND ==================
 function renderHand() {
-  const hand = document.getElementById("hand");
-  hand.innerHTML = "";
+  const h = document.getElementById("hand");
+  h.innerHTML = "";
 
-  cards.forEach(card => {
+  hand.forEach(card => {
     const div = document.createElement("div");
     div.className = "card";
     div.innerHTML = `
@@ -91,25 +113,32 @@ function renderHand() {
       <small>${card.name}</small>
       <small>${card.cost}💧</small>
     `;
-    div.onclick = () => spawnUnit(card, "player");
-    hand.appendChild(div);
+    div.onclick = () => playCard(card);
+    h.appendChild(div);
   });
 }
 
-// ================== SPAWN UNITS ==================
-function spawnUnit(card, owner) {
+function playCard(card) {
   if (elixir < card.cost) return;
 
   elixir -= card.cost;
   updateElixir();
+  spawnUnit(card);
 
+  deck.push(deck.shift());
+  hand = deck.slice(0, 4);
+  renderHand();
+  saveGame();
+}
+
+// ================== UNITS ==================
+function spawnUnit(card) {
   units.push({
     ...card,
-    owner,
-    x: owner === "player" ? canvas.width / 2 : canvas.width / 2,
-    y: owner === "player" ? 520 : 100,
+    owner: "player",
+    x: canvas.width / 2,
+    y: 520,
     currentHp: card.hp,
-    target: null,
     attackCooldown: 0
   });
 }
@@ -128,52 +157,35 @@ function gameLoop(time) {
   }
 }
 
-// ================== UNIT LOGIC ==================
+// ================== COMBAT ==================
 function updateUnits(delta) {
   units.forEach(unit => {
     if (unit.currentHp <= 0) return;
 
-    // Find closest enemy
     const enemies = units.filter(u => u.owner !== unit.owner && u.currentHp > 0);
-    let closest = null;
-    let dist = Infinity;
+    let target = enemies[0];
 
-    enemies.forEach(e => {
-      const d = Math.abs(e.y - unit.y);
-      if (d < dist) {
-        dist = d;
-        closest = e;
-      }
-    });
-
-    if (closest && dist < 30) {
-      // ATTACK
+    if (target && Math.abs(target.y - unit.y) < 30) {
       unit.attackCooldown -= delta;
       if (unit.attackCooldown <= 0) {
-        closest.currentHp -= unit.dmg;
+        target.currentHp -= unit.dmg;
         unit.attackCooldown = 800;
       }
     } else {
-      // MOVE
-      unit.y += unit.owner === "player" ? -unit.speed * delta : unit.speed * delta;
+      unit.y -= unit.speed * delta;
     }
   });
 
-  // Remove dead units
-  units = units.filter(u => u.currentHp > 0 && u.y > 0 && u.y < canvas.height);
+  units = units.filter(u => u.currentHp > 0 && u.y > 0);
 }
 
 // ================== DRAW UNITS ==================
 function drawUnits() {
   ctx.font = "26px Arial";
-
-  units.forEach(unit => {
-    ctx.fillText(unit.emoji, unit.x - 10, unit.y);
-
-    // Health bar
-    const hpRatio = unit.currentHp / unit.hp;
-    ctx.fillStyle = unit.owner === "player" ? "purple" : "red";
-    ctx.fillRect(unit.x - 15, unit.y + 5, 30 * hpRatio, 4);
+  units.forEach(u => {
+    ctx.fillText(u.emoji, u.x - 10, u.y);
+    ctx.fillStyle = "purple";
+    ctx.fillRect(u.x - 15, u.y + 5, 30 * (u.currentHp / u.hp), 4);
   });
 }
 
@@ -182,33 +194,49 @@ function updateElixir() {
   document.getElementById("elixirFill").style.width = (elixir * 10) + "%";
 }
 
-// ================== DECK / UPGRADES / ARENAS ==================
-function renderDeck() {
-  document.getElementById("deckCards").innerHTML =
-    cards.map(c => `${c.emoji} ${c.name}`).join("<br>");
+// ================== DECK BUILDER ==================
+function renderDeckBuilder() {
+  const d = document.getElementById("deckCards");
+  d.innerHTML = "";
+
+  deck.forEach((card, i) => {
+    const div = document.createElement("div");
+    div.className = "card";
+    div.draggable = true;
+    div.innerHTML = `${card.emoji}<br>${card.name}`;
+
+    div.ondragstart = e => e.dataTransfer.setData("i", i);
+    div.ondragover = e => e.preventDefault();
+    div.ondrop = e => {
+      const from = e.dataTransfer.getData("i");
+      [deck[from], deck[i]] = [deck[i], deck[from]];
+      renderDeckBuilder();
+      saveGame();
+    };
+
+    d.appendChild(div);
+  });
 }
 
+// ================== UPGRADES ==================
 function renderUpgrades() {
   const u = document.getElementById("upgradeCards");
   u.innerHTML = "";
-  cards.forEach(c => {
+  allCards.forEach(c => {
     const b = document.createElement("button");
-    b.textContent = `Upgrade ${c.name}`;
+    b.textContent = `${c.emoji} ${c.name} Lv ${c.level}`;
     b.onclick = () => {
       if (crowns > 0) {
         crowns--;
-        c.hp += 50;
-        c.dmg += 10;
+        c.level++;
+        saveGame();
+        renderUpgrades();
       }
     };
     u.appendChild(b);
   });
 }
 
-function renderArenas() {
-  const a = document.getElementById("arenaList");
-  a.innerHTML = "";
-  arenas.forEach(ar => {
-    a.innerHTML += `<div class="arena">${ar.name}</div>`;
-  });
-}
+// ================== INIT ==================
+loadGame();
+updateElixir();
