@@ -1,574 +1,280 @@
-/**********************************************************
- * DASH ROYALE – FULL SCRIPT WITH ARENAS & ANIMATIONS
- **********************************************************/
-
-/* ===================== DOM ===================== */
-const menuScreen = document.getElementById("menuScreen");
-const gameScreen = document.getElementById("gameScreen");
-const deckBuilderScreen = document.getElementById("deckBuilderScreen");
-const upgradeScreen = document.getElementById("upgradeScreen");
-const arenaScreen = document.getElementById("arenaScreen");
-
+/* ================= CANVAS ================= */
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-const cardHand = document.getElementById("cardHand");
-const elixirFill = document.getElementById("elixirFill");
-const timerEl = document.getElementById("timer");
-const scoreEl = document.getElementById("score");
-const crownDisplay = document.getElementById("crownDisplay");
+/* ================= GAME STATE ================= */
+let gameState = "menu"; // menu | playing | ended
 
-const allCardsDiv = document.getElementById("allCards");
-const activeDeckDiv = document.getElementById("activeDeck");
-const upgradeGrid = document.getElementById("upgradeGrid");
-
-const arenaListDiv = document.getElementById("arenaList");
-const menuButtonsDiv = document.querySelector(".menuButtons");
-
-/* ===================== GAME STATE ===================== */
-let gameTime = 180;
-let timerInterval;
-let gameActive = false;
-
+/* ================= DATA ================= */
 let crowns = 0;
-let playerScore = 0;
-let enemyScore = 0;
-
 let elixir = 10;
-const MAX_ELIXIR = 10;
-
-let draggingCard = null;
 let units = [];
-let projectiles = [];
-let particles = [];
-let handIndex = 0;
+let playerTowers = [];
+let enemyTowers = [];
+let score = { player: 0, enemy: 0 };
 
-let currentArena = "Goblin Stadium";
+/* ================= ARENAS ================= */
+const arenas = [
+  {
+    name: "Goblin Stadium",
+    cost: 0,
+    bg: "#22c55e",
+    river: true,
+    unlockCards: []
+  },
+  {
+    name: "Barbarian Bowl",
+    cost: 50,
+    bg: "#fbbf24",
+    river: true,
+    unlockCards: ["Barbarian", "Valkyrie", "Elite Barb", "Rage Goblin"]
+  },
+  {
+    name: "P.E.K.K.A's Playhouse",
+    cost: 150,
+    bg: "#9ca3af",
+    river: false,
+    unlockCards: ["Mini P.E.K.K.A", "P.E.K.K.A", "Dark Knight", "Iron Golem"]
+  },
+  {
+    name: "Spell Valley",
+    cost: 300,
+    bg: "#6d28d9",
+    river: true,
+    unlockCards: ["Wizard", "Fireball", "Lightning", "Ice Spirit"]
+  }
+];
+
 let unlockedArenas = { "Goblin Stadium": true };
+let currentArena = "Goblin Stadium";
 
-/* ===================== CARDS ===================== */
+/* ================= CARDS ================= */
 const baseCards = {
-  Knight: { emoji:"🗡️", cost:3, hp:700, dmg:80, speed:0.6, arena:"Goblin Stadium" },
-  Archer: { emoji:"🏹", cost:3, hp:350, dmg:100, speed:0.7, arena:"Goblin Stadium" },
-  Giant:  { emoji:"🗿", cost:5, hp:2000, dmg:120, speed:0.35, arena:"Goblin Stadium" },
-  MiniPekka:{ emoji:"🤖", cost:4, hp:900, dmg:200, speed:0.6, arena:"Barbarian Bowl", effect:"slash" },
-  Wizard: { emoji:"🧙", cost:5, hp:500, dmg:160, speed:0.55, arena:"Barbarian Bowl", effect:"magic" },
-  Skeleton:{ emoji:"💀", cost:1, hp:120, dmg:45, speed:0.9, arena:"Goblin Stadium" },
-  Valkyrie:{ emoji:"🪓", cost:4, hp:1200, dmg:130, speed:0.5, arena:"Barbarian Bowl", effect:"spin" },
-  Prince: { emoji:"🐎", cost:5, hp:1500, dmg:220, speed:0.7, arena:"Barbarian Bowl", effect:"charge" },
-  Fireball:{ emoji:"🔥", cost:4, hp:0, dmg:250, speed:1, arena:"Spell Valley", effect:"fire" }
+  Knight:{emoji:"🗡️",hp:600,damage:20,speed:1,cost:3},
+  Archer:{emoji:"🏹",hp:400,damage:15,speed:1.2,cost:3},
+  Giant:{emoji:"🗿",hp:1500,damage:30,speed:0.6,cost:5},
+  Goblin:{emoji:"👺",hp:300,damage:12,speed:1.6,cost:2},
+
+  // Arena unlocks
+  Barbarian:{emoji:"🪓",hp:800,damage:25,speed:1,cost:4},
+  Valkyrie:{emoji:"🌀",hp:1000,damage:35,speed:0.9,cost:4},
+  "Elite Barb":{emoji:"⚔️",hp:900,damage:40,speed:1.4,cost:5},
+  "Rage Goblin":{emoji:"🔥",hp:500,damage:28,speed:2,cost:3},
+
+  "Mini P.E.K.K.A":{emoji:"🤖",hp:900,damage:55,speed:1,cost:4},
+  "P.E.K.K.A":{emoji:"🦾",hp:2000,damage:90,speed:0.5,cost:7},
+  "Dark Knight":{emoji:"🖤",hp:1100,damage:45,speed:1,cost:4},
+  "Iron Golem":{emoji:"🪨",hp:2500,damage:60,speed:0.4,cost:8},
+
+  Wizard:{emoji:"🧙",hp:600,damage:45,speed:1,cost:5},
+  Fireball:{emoji:"🔥",hp:1,damage:100,speed:0,cost:4},
+  Lightning:{emoji:"⚡",hp:1,damage:150,speed:0,cost:6},
+  "Ice Spirit":{emoji:"❄️",hp:200,damage:20,speed:2,cost:1}
 };
 
 let cardLevels = {};
-Object.keys(baseCards).forEach(c => cardLevels[c] = 1);
+Object.keys(baseCards).forEach(c=>cardLevels[c]=1);
 
-let activeDeck = Object.keys(baseCards).filter(c=>baseCards[c].arena==="Goblin Stadium");
+/* ================= DECK ================= */
+let activeDeck = ["Knight","Archer","Giant","Goblin"];
+let hand = [];
 
-/* ===================== ARENAS ===================== */
-const arenas = [
-  { name:"Goblin Stadium", cost:0, img:"images/goblin_small.png", bgColor:"#22c55e", river:false },
-  { name:"Barbarian Bowl", cost:100, img:"images/barbarian_small.png", bgColor:"#fde68a", river:false },
-  { name:"P.E.K.K.A's Playhouse", cost:300, img:"images/pekka_small.png", bgColor:"#a1a1aa", river:false },
-  { name:"Spell Valley", cost:500, img:"images/spell_small.png", bgColor:"#6366f1", river:true }
-];
-
-/* ===================== TOWERS ===================== */
-const PRINCESS_HP = 2352;
-const KING_HP = 3096;
-
-let playerTowers, enemyTowers;
-
-/* ===================== NAVIGATION ===================== */
-function startGame(){
-  menuScreen.classList.add("hidden");
-  gameScreen.classList.remove("hidden");
-  gameActive = true;
-  resetGame();
-}
-
-function backToMenu(){
-  gameScreen.classList.add("hidden");
-  deckBuilderScreen.classList.add("hidden");
-  upgradeScreen.classList.add("hidden");
-  arenaScreen.classList.add("hidden");
-  menuScreen.classList.remove("hidden");
-  gameActive = false;
-}
-
-/* ===================== ARENA SCREEN ===================== */
-function renderArenaScreen(){
-  arenaScreen.classList.remove("hidden");
-  arenaListDiv.innerHTML = "";
-  arenas.forEach(a=>{
-    const div = document.createElement("div");
-    div.className="arenaCard";
-    div.innerHTML = `
-      <img src="${a.img}" width="150"><br>
-      <b>${a.name}</b><br>
-      ${unlockedArenas[a.name] ? "Unlocked" : `Cost: ${a.cost} 👑`}
-    `;
-    const btn = document.createElement("button");
-    btn.innerText = unlockedArenas[a.name] ? "Select" : "Get";
-    btn.onclick = ()=>{
-      if(unlockedArenas[a.name]){
-        currentArena=a.name;
-        alert(a.name+" selected!");
-      } else if(crowns>=a.cost){
-        crowns -= a.cost;
-        unlockedArenas[a.name]=true;
-        currentArena=a.name;
-        crownDisplay.innerText=`👑 Crowns: ${crowns}`;
-        alert(a.name+" unlocked and selected!");
-        saveProgress();
-        renderArenaScreen();
-      } else {
-        alert("Not enough crowns!");
-      }
-    };
-    div.appendChild(btn);
-    arenaListDiv.appendChild(div);
-  });
-}
-
-/* ===================== TIMER ===================== */
-function setGameTime(t){
-  gameTime = t;
-  updateTimer();
-}
-
-function startTimer(){
-  clearInterval(timerInterval);
-  timerInterval = setInterval(()=>{
-    if(!gameActive) return;
-    gameTime--;
-    updateTimer();
-    if(gameTime<=0) endGame();
-  },1000);
-}
-
-function updateTimer(){
-  timerEl.innerText =
-    Math.floor(gameTime/60)+":"+(gameTime%60).toString().padStart(2,"0");
-}
-
-/* ===================== GAME RESET ===================== */
-function resetGame(){
-  units = [];
-  projectiles = [];
-  particles = [];
-  elixir = MAX_ELIXIR;
-  handIndex = 0;
-  updateElixir();
-
-  playerTowers = [
-    {x:200,y:400,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:false, king:false, emoji:"🏰", cooldown:0},
-    {x:700,y:400,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:false, king:false, emoji:"🏰", cooldown:0},
-    {x:450,y:470,hp:KING_HP,max:KING_HP, enemy:false, king:true, emoji:"👑", cooldown:0}
-  ];
-
-  enemyTowers = [
-    {x:200,y:120,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:true, king:false, emoji:"🏰", cooldown:0},
-    {x:700,y:120,hp:PRINCESS_HP,max:PRINCESS_HP, enemy:true, king:false, emoji:"🏰", cooldown:0},
-    {x:450,y:60,hp:KING_HP,max:KING_HP, enemy:true, king:true, emoji:"👑", cooldown:0}
-  ];
-
-  // Update activeDeck for selected arena
-  activeDeck = Object.keys(baseCards).filter(c=>unlockedArenas[baseCards[c].arena] || baseCards[c].arena===currentArena);
-  drawHand();
-  startTimer();
-  requestAnimationFrame(gameLoop);
-}
-
-/* ===================== ELIXIR ===================== */
-setInterval(()=>{
-  if(!gameActive) return;
-  elixir = Math.min(MAX_ELIXIR, elixir + 0.1);
-  updateElixir();
-},100);
-
-function updateElixir(){
-  elixirFill.style.width = (elixir / MAX_ELIXIR * 100) + "%";
-}
-
-/* ===================== HAND ===================== */
-function drawHand(){
-  cardHand.innerHTML = "";
-  for(let i=0;i<4;i++){
-    let idx = (handIndex + i)%activeDeck.length;
-    const name = activeDeck[idx];
-    const c = baseCards[name];
-    const lvl = cardLevels[name];
-
-    const div = document.createElement("div");
-    div.className = "card";
-    if(lvl>=5) div.classList.add("level-purple");
-    else if(lvl>=3) div.classList.add("level-red");
-
-    div.innerHTML = `
-      <div class="emoji">${c.emoji}</div>
-      <div class="name">${name}</div>
-      <div class="level">Lvl ${lvl}</div>
-      <div class="cost">${c.cost}</div>
-    `;
-
-    div.onmousedown = () => draggingCard = name;
-    div.onclick = () => {
-      placeCard(name, canvas.width/2, canvas.height-80);
-      handIndex = (handIndex+1)%activeDeck.length;
-      drawHand();
-    };
-
-    cardHand.appendChild(div);
-  }
-}
-
-/* ===================== PLACEMENT ===================== */
-canvas.addEventListener("mouseup", e=>{
-  if(!draggingCard) return;
-  const rect = canvas.getBoundingClientRect();
-  placeCard(
-    draggingCard,
-    e.clientX - rect.left,
-    e.clientY - rect.top
-  );
-  handIndex = (handIndex+1)%activeDeck.length;
-  drawHand();
-  draggingCard = null;
-});
-
-function placeCard(name,x,y){
-  const c = baseCards[name];
-  if(elixir < c.cost) return;
-  elixir -= c.cost;
-  updateElixir();
-
-  const lvl = cardLevels[name];
-  units.push({
-    name,
-    emoji:c.emoji,
-    x,y,
-    hp:c.hp * (1 + lvl*0.15),
-    maxHp:c.hp * (1 + lvl*0.15),
-    dmg:c.dmg * (1 + lvl*0.15),
-    speed:c.speed,
-    enemy:false,
-    target:null,
-    effect:c.effect
-  });
-}
-
-/* ===================== ENEMY AI ===================== */
-setInterval(()=>{
-  if(!gameActive) return;
-  const names = Object.keys(baseCards).filter(c=>baseCards[c].arena===currentArena || unlockedArenas[baseCards[c].arena]);
-  const name = names[Math.floor(Math.random()*names.length)];
-  const c = baseCards[name];
-
-  units.push({
-    name,
-    emoji:c.emoji,
-    x:Math.random()*canvas.width,
-    y:80,
-    hp:c.hp,
-    maxHp:c.hp,
-    dmg:c.dmg,
-    speed:c.speed,
-    enemy:true,
-    target:null,
-    effect:c.effect
-  });
-},3500);
-
-/* ===================== GAME LOOP ===================== */
-function gameLoop(){
-  if(!gameActive) return;
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  drawArenaBackground();
-  drawTowers(playerTowers);
-  drawTowers(enemyTowers);
-
-  units.forEach(u=>{
-    updateUnitTarget(u);
-    moveUnit(u);
-    drawUnit(u);
-    attackTarget(u);
-    drawCardEffect(u);
-  });
-
-  projectiles.forEach(p=>{
-    p.x += p.vx;
-    p.y += p.vy;
-    ctx.fillStyle = p.enemy ? "#ef4444" : "#9333ea";
-    ctx.beginPath();
-    ctx.arc(p.x,p.y,5,0,Math.PI*2);
-    ctx.fill();
-
-    if(Math.abs(p.x-p.target.x)<15 && Math.abs(p.y-p.target.y)<15){
-      p.target.hp -= p.dmg;
-      p.hit = true;
-      spawnParticle(p.x,p.y,p.enemy?"#ef4444":"#9333ea");
-    }
-  });
-  projectiles = projectiles.filter(p=>!p.hit);
-
-  // Update particles
-  particles.forEach(p=>{
-    p.x += p.vx;
-    p.y += p.vy;
-    p.alpha -= 0.03;
-    ctx.fillStyle = `rgba(${p.color},${p.alpha})`;
-    ctx.beginPath();
-    ctx.arc(p.x,p.y,3,0,Math.PI*2);
-    ctx.fill();
-  });
-  particles = particles.filter(p=>p.alpha>0);
-
-  fireTowers(playerTowers);
-  fireTowers(enemyTowers);
-
-  units = units.filter(u=>u.hp>0);
-
-  requestAnimationFrame(gameLoop);
-}
-
-/* ===================== ANIMATIONS ===================== */
-function spawnParticle(x,y,color){
-  const rgb = color==="red" ? "239,68,68" : "147,51,234";
-  for(let i=0;i<5;i++){
-    particles.push({
-      x,y,
-      vx:(Math.random()-0.5)*2,
-      vy:(Math.random()-0.5)*2,
-      color:rgb,
-      alpha:1
-    });
-  }
-}
-
-function drawCardEffect(u){
-  if(!u.effect) return;
-  ctx.font="20px Arial";
-  switch(u.effect){
-    case "fire":
-      ctx.fillStyle="orange";
-      ctx.fillText("🔥", u.x-10, u.y-20);
-      break;
-    case "slash":
-      ctx.fillStyle="gray";
-      ctx.fillText("✂️", u.x-10, u.y-20);
-      break;
-    case "magic":
-      ctx.fillStyle="purple";
-      ctx.fillText("✨", u.x-10, u.y-20);
-      break;
-    case "spin":
-      ctx.fillStyle="brown";
-      ctx.fillText("🌀", u.x-10, u.y-20);
-      break;
-    case "charge":
-      ctx.fillStyle="red";
-      ctx.fillText("⚡", u.x-10, u.y-20);
-      break;
-  }
-}
-
-/* ===================== ARENA BACKGROUND ===================== */
-function drawArenaBackground(){
-  const arena = arenas.find(a=>a.name===currentArena);
-  ctx.fillStyle = arena.bgColor;
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-  if(arena.river){
-    ctx.fillStyle="#2563eb";
-    ctx.fillRect(0,canvas.height/2-20,canvas.width,40);
-    // Optional: animate waves
-  }
-}
-
-/* ===================== UNIT LOGIC ===================== */
-function updateUnitTarget(u){
-  const enemies = units.filter(other=>other.enemy!==u.enemy);
-  const allTargets = [...enemies, ...(u.enemy?playerTowers:enemyTowers)];
-  if(allTargets.length===0) { u.target=null; return; }
-  u.target = allTargets.reduce((a,b)=>{
-    const da=Math.hypot(a.x-u.x,a.y-u.y);
-    const db=Math.hypot(b.x-u.x,b.y-u.y);
-    return da<db?a:b;
-  });
-}
-
-function moveUnit(u){
-  if(!u.target) return;
-  const dx = u.target.x - u.x;
-  const dy = u.target.y - u.y;
-  const dist = Math.hypot(dx,dy);
-  if(dist>20){
-    u.x += dx/dist*u.speed;
-    u.y += dy/dist*u.speed;
-  }
-}
-
-function attackTarget(u){
-  if(!u.target) return;
-  const dx = u.target.x - u.x;
-  const dy = u.target.y - u.y;
-  const dist = Math.hypot(dx,dy);
-  if(dist<=20){
-    u.target.hp -= u.dmg*0.02;
-    if(u.target.hp<=0){
-      if(u.target.king) endGame(u.enemy?"enemy":"player");
-      u.target=null;
-    }
-  }
-}
-
-/* ===================== DRAWING ===================== */
-function drawTowers(arr){
-  arr.forEach(t=>{
-    ctx.font="28px Arial";
-    ctx.fillText(t.emoji,t.x-12,t.y+12);
-
-    ctx.fillStyle = t.enemy ? "#ef4444" : "#9333ea";
-    ctx.fillRect(t.x-25, t.y-35, 50*(t.hp/t.max), 6);
-
-    ctx.fillStyle="white";
-    ctx.font="12px Arial";
-    ctx.fillText(Math.floor(t.hp),t.x-20,t.y-40);
-  });
-}
-
-function drawUnit(u){
-  ctx.font="26px Arial";
-  ctx.fillText(u.emoji,u.x-12,u.y+12);
-}
-
-/* ===================== TOWER FIRING ===================== */
-function fireTowers(arr){
-  arr.forEach(t=>{
-    if(t.cooldown>0) { t.cooldown--; return; }
-    let targets = units.filter(u=>u.enemy!==t.enemy);
-    if(targets.length===0) return;
-    let nearest = targets.reduce((a,b)=>{
-      const da=Math.hypot(a.x-t.x,a.y-t.y);
-      const db=Math.hypot(b.x-t.x,b.y-t.y);
-      return da<db?a:b;
-    });
-    projectiles.push({
-      x:t.x,
-      y:t.y,
-      vx:(nearest.x-t.x)*0.05,
-      vy:(nearest.y-t.y)*0.05,
-      target:nearest,
-      dmg:50,
-      enemy:t.enemy,
-      hit:false
-    });
-    t.cooldown = 60;
-  });
-}
-
-/* ===================== END GAME ===================== */
-function endGame(winner){
-  clearInterval(timerInterval);
-  gameActive=false;
-  if(winner==="player"){ playerScore+=3; crowns+=3; }
-  else if(winner==="enemy"){ enemyScore+=3; }
-  scoreEl.innerText=`👑 ${playerScore} - ${enemyScore}`;
-  crownDisplay.innerText=`👑 Crowns: ${crowns}`;
-  saveProgress();
-  backToMenu();
-}
-
-/* ===================== DECK BUILDER & UPGRADES ===================== */
-function renderDeckBuilder(){
-  allCardsDiv.innerHTML = "";
-  activeDeckDiv.innerHTML = "";
-  Object.keys(baseCards).forEach(name=>{
-    const c=baseCards[name];
-    if(c.arena!==currentArena && !unlockedArenas[c.arena]) return;
-    const lvl=cardLevels[name];
-    const div=document.createElement("div");
-    div.className="bigCard";
-    if(lvl>=5) div.classList.add("level-purple");
-    else if(lvl>=3) div.classList.add("level-red");
-    div.innerHTML=`<div class="emoji">${c.emoji}</div>
-                   <div class="name">${name}</div>
-                   <div class="level">Lvl ${lvl}</div>`;
-    div.onclick = ()=>{
-      if(!activeDeck.includes(name)){
-        activeDeck.push(name);
-        drawHand();
-      } else {
-        activeDeck = activeDeck.filter(n=>n!==name);
-        drawHand();
-      }
-      saveProgress();
-      renderDeckBuilder();
-    };
-    (activeDeck.includes(name)?activeDeckDiv:allCardsDiv).appendChild(div);
-  });
-}
-
-function renderUpgrades(){
-  upgradeGrid.innerHTML="";
-  Object.keys(baseCards).forEach(name=>{
-    const c=baseCards[name];
-    const lvl=cardLevels[name];
-    const div=document.createElement("div");
-    div.className="bigCard";
-    if(lvl>=5) div.classList.add("level-purple");
-    else if(lvl>=3) div.classList.add("level-red");
-    div.innerHTML=`<div class="emoji">${c.emoji}</div>
-                   <div class="name">${name}</div>
-                   <div class="level">Lvl ${lvl}</div>
-                   <button>Upgrade</button>`;
-    div.querySelector("button").onclick=()=>{
-      cardLevels[name]++;
-      saveProgress();
-      renderUpgrades();
-    };
-    upgradeGrid.appendChild(div);
-  });
-}
-
-/* ===================== LOCAL STORAGE ===================== */
+/* ================= LOAD / SAVE ================= */
 function saveProgress(){
   localStorage.setItem("dash_crowns", crowns);
   localStorage.setItem("dash_levels", JSON.stringify(cardLevels));
   localStorage.setItem("dash_deck", JSON.stringify(activeDeck));
   localStorage.setItem("dash_arenas", JSON.stringify(unlockedArenas));
-  localStorage.setItem("dash_arenaSelected", currentArena);
-  localStorage.setItem("dash_time", gameTime);
+  localStorage.setItem("dash_arena", currentArena);
 }
 
 function loadProgress(){
   crowns = Number(localStorage.getItem("dash_crowns")) || 0;
   cardLevels = JSON.parse(localStorage.getItem("dash_levels")) || cardLevels;
-  activeDeck = JSON.parse(localStorage.getItem("dash_deck")) || Object.keys(baseCards);
-  unlockedArenas = JSON.parse(localStorage.getItem("dash_arenas")) || {"Goblin Stadium": true};
-  currentArena = localStorage.getItem("dash_arenaSelected") || "Goblin Stadium";
-  gameTime = Number(localStorage.getItem("dash_time")) || 180;
-  crownDisplay.innerText = `👑 Crowns: ${crowns}`;
+  activeDeck = JSON.parse(localStorage.getItem("dash_deck")) || activeDeck;
+  unlockedArenas = JSON.parse(localStorage.getItem("dash_arenas")) || unlockedArenas;
+  currentArena = localStorage.getItem("dash_arena") || "Goblin Stadium";
 }
 
-/* ===================== ADMIN BUTTON ===================== */
-const adminBtn = document.createElement("button");
-adminBtn.innerText="Admin";
-adminBtn.className="bigButton";
-adminBtn.onclick = ()=>{
-  const pwd = prompt("Enter admin password:");
-  if(pwd==="littlebrother6"){
-    const c = prompt("Set crowns:");
-    if(!isNaN(c)) { crowns=Number(c); crownDisplay.innerText=`👑 Crowns: ${crowns}`; saveProgress(); }
-    alert("Admin access granted!");
-  } else alert("Wrong password!");
-};
-menuButtonsDiv.appendChild(adminBtn);
+/* ================= GAME START ================= */
+function startGame(){
+  gameState = "playing";
+  units = [];
+  elixir = 10;
+  setupTowers();
+  drawHand();
+  menuScreen.classList.add("hidden");
+  gameScreen.classList.remove("hidden");
+  requestAnimationFrame(gameLoop);
+}
 
-/* ===================== INIT ===================== */
+/* ================= TOWERS ================= */
+function setupTowers(){
+  playerTowers = [
+    {x:canvas.width/2,y:canvas.height-60,hp:3096,emoji:"👑",king:true},
+    {x:canvas.width/4,y:canvas.height-120,hp:2352,emoji:"🏰"},
+    {x:canvas.width*3/4,y:canvas.height-120,hp:2352,emoji:"🏰"}
+  ];
+  enemyTowers = [
+    {x:canvas.width/2,y:60,hp:3096,emoji:"👑",king:true},
+    {x:canvas.width/4,y:120,hp:2352,emoji:"🏰"},
+    {x:canvas.width*3/4,y:120,hp:2352,emoji:"🏰"}
+  ];
+}
+
+/* ================= LOOP ================= */
+function gameLoop(){
+  if(gameState!=="playing") return;
+
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  drawArena();
+  updateUnits();
+  drawUnits();
+  drawTowers();
+
+  requestAnimationFrame(gameLoop);
+}
+
+/* ================= ARENA DRAW ================= */
+function drawArena(){
+  const a=arenas.find(ar=>ar.name===currentArena);
+  ctx.fillStyle=a.bg;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  if(a.river){
+    ctx.fillStyle="#2563eb";
+    ctx.fillRect(0,canvas.height/2-25,canvas.width,50);
+    ctx.fillStyle="#92400e";
+    ctx.fillRect(canvas.width/3-20,canvas.height/2-25,40,50);
+    ctx.fillRect(canvas.width*2/3-20,canvas.height/2-25,40,50);
+  }
+}
+
+/* ================= UNITS ================= */
+function spawnUnit(card,x,y,team){
+  units.push({
+    ...baseCards[card],
+    x,y,team,
+    hp:baseCards[card].hp*cardLevels[card]
+  });
+}
+
+function updateUnits(){
+  units.forEach(u=>{
+    const enemies = units.filter(e=>e.team!==u.team);
+    const towers = u.team==="player"?enemyTowers:playerTowers;
+    let target=null,dist=99999;
+
+    enemies.forEach(e=>{
+      const d=Math.hypot(e.x-u.x,e.y-u.y);
+      if(d<dist){dist=d;target=e;}
+    });
+
+    if(!target){
+      towers.forEach(t=>{
+        const d=Math.hypot(t.x-u.x,t.y-u.y);
+        if(d<dist){dist=d;target=t;}
+      });
+    }
+
+    if(!target) return;
+
+    if(dist>40){
+      u.x+=Math.sign(target.x-u.x)*u.speed;
+      u.y+=Math.sign(target.y-u.y)*u.speed;
+    } else {
+      target.hp-=u.damage;
+    }
+  });
+
+  units=units.filter(u=>u.hp>0);
+  checkTowers();
+}
+
+/* ================= DRAW ================= */
+function drawUnits(){
+  units.forEach(u=>{
+    ctx.font="28px Arial";
+    ctx.fillText(u.emoji,u.x-10,u.y+10);
+  });
+}
+
+function drawTowers(){
+  [...playerTowers,...enemyTowers].forEach(t=>{
+    ctx.font="36px Arial";
+    ctx.fillText(t.emoji,t.x-18,t.y+12);
+    ctx.fillStyle=t.king?"white":"yellow";
+    ctx.fillText(Math.max(0,Math.floor(t.hp)),t.x-20,t.y+30);
+  });
+}
+
+/* ================= END GAME ================= */
+function checkTowers(){
+  playerTowers=playerTowers.filter(t=>t.hp>0);
+  enemyTowers=enemyTowers.filter(t=>t.hp>0);
+
+  if(!enemyTowers.some(t=>t.king)){
+    crowns+=20;
+    alert("YOU WIN 👑");
+    saveProgress();
+    backToMenu();
+  }
+  if(!playerTowers.some(t=>t.king)){
+    alert("YOU LOSE");
+    backToMenu();
+  }
+}
+
+/* ================= HAND ================= */
+function drawHand(){
+  cardHand.innerHTML="";
+  hand = activeDeck.slice(0,4);
+  hand.forEach(c=>{
+    const d=document.createElement("div");
+    d.className="card";
+    d.innerHTML=`<div>${baseCards[c].emoji}</div><div>${c}</div><div>${baseCards[c].cost}💧</div>`;
+    d.onclick=()=>{
+      if(elixir>=baseCards[c].cost){
+        elixir-=baseCards[c].cost;
+        spawnUnit(c,canvas.width/2,canvas.height-80,"player");
+      }
+    };
+    cardHand.appendChild(d);
+  });
+}
+
+/* ================= ARENA MENU ================= */
+function renderArenaScreen(){
+  arenaList.innerHTML="";
+  arenas.forEach(a=>{
+    const d=document.createElement("div");
+    d.className="arenaCard";
+    d.innerHTML=`<canvas width="120" height="60"></canvas>
+                 <div>${a.name}</div>
+                 <div>${unlockedArenas[a.name]?"Unlocked":"Get ("+a.cost+"👑)"}</div>`;
+    d.onclick=()=>{
+      if(unlockedArenas[a.name]){
+        currentArena=a.name;
+      } else if(crowns>=a.cost){
+        crowns=0;
+        unlockedArenas[a.name]=true;
+        a.unlockCards.forEach(c=>activeDeck.push(c));
+      }
+      saveProgress();
+      renderArenaScreen();
+    };
+    arenaList.appendChild(d);
+  });
+}
+
+/* ================= MENU ================= */
+function backToMenu(){
+  gameState="menu";
+  gameScreen.classList.add("hidden");
+  menuScreen.classList.remove("hidden");
+}
+
+/* ================= INIT ================= */
 loadProgress();
-drawHand();
-renderDeckBuilder();
-renderUpgrades();
 renderArenaScreen();
-updateTimer();
+drawHand();
