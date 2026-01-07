@@ -7,6 +7,7 @@ let deck = [];
 let hand = [];
 let lastTime = 0;
 
+// ================== CANVAS ==================
 const canvas = document.getElementById("battlefield");
 const ctx = canvas.getContext("2d");
 
@@ -21,6 +22,20 @@ const allCards = [
   { id: 7, name: "Mini Pekka", emoji: "🤖", cost: 4, hp: 500, dmg: 90, speed: 0.45, level: 1 },
   { id: 8, name: "Skeletons", emoji: "💀", cost: 1, hp: 120, dmg: 25, speed: 0.6, level: 1 }
 ];
+
+// ================== TOWERS ==================
+let towers = {
+  player: [
+    { name: "Princess", emoji: "🏰", hp: 2352, x: 60, y: 560 },
+    { name: "Princess", emoji: "🏰", hp: 2352, x: 300, y: 560 },
+    { name: "King", emoji: "👑", hp: 3096, x: 185, y: 590 }
+  ],
+  enemy: [
+    { name: "Princess", emoji: "🏰", hp: 2352, x: 60, y: 70 },
+    { name: "Princess", emoji: "🏰", hp: 2352, x: 300, y: 70 },
+    { name: "King", emoji: "👑", hp: 3096, x: 185, y: 40 }
+  ]
+};
 
 // ================== SAVE / LOAD ==================
 function saveGame() {
@@ -39,7 +54,6 @@ function loadGame() {
   }
 
   crowns = save.crowns || 0;
-
   save.cards.forEach(saved => {
     const card = allCards.find(c => c.id === saved.id);
     if (card) card.level = saved.level;
@@ -92,12 +106,13 @@ function drawArena() {
   ctx.fillRect(270, 270, 60, 80);
 
   ctx.font = "32px Arial";
-  ctx.fillText("🏰", 60, 560);
-  ctx.fillText("🏰", 300, 560);
-  ctx.fillText("👑", 185, 590);
-  ctx.fillText("🏰", 60, 70);
-  ctx.fillText("🏰", 300, 70);
-  ctx.fillText("👑", 185, 40);
+
+  // Draw towers
+  ["player", "enemy"].forEach(side => {
+    towers[side].forEach(t => {
+      if (t.hp > 0) ctx.fillText(t.emoji, t.x, t.y);
+    });
+  });
 }
 
 // ================== HAND ==================
@@ -120,7 +135,6 @@ function renderHand() {
 
 function playCard(card) {
   if (elixir < card.cost) return;
-
   elixir -= card.cost;
   updateElixir();
   spawnUnit(card);
@@ -131,7 +145,7 @@ function playCard(card) {
   saveGame();
 }
 
-// ================== UNITS ==================
+// ================== SPAWN UNITS ==================
 function spawnUnit(card) {
   units.push({
     ...card,
@@ -151,32 +165,59 @@ function gameLoop(time) {
   updateUnits(delta);
   drawArena();
   drawUnits();
+  drawTowers();
 
-  if (currentScreen === "game") {
-    requestAnimationFrame(gameLoop);
-  }
+  if (currentScreen === "game") requestAnimationFrame(gameLoop);
 }
 
-// ================== COMBAT ==================
+// ================== UNITS / COMBAT ==================
 function updateUnits(delta) {
   units.forEach(unit => {
     if (unit.currentHp <= 0) return;
 
-    const enemies = units.filter(u => u.owner !== unit.owner && u.currentHp > 0);
-    let target = enemies[0];
+    // Closest enemy units
+    const enemyUnits = units.filter(u => u.owner !== unit.owner && u.currentHp > 0);
+    let target = enemyUnits[0];
 
-    if (target && Math.abs(target.y - unit.y) < 30) {
+    if (!target) {
+      // No units? Attack closest enemy tower
+      const enemySide = unit.owner === "player" ? "enemy" : "player";
+      target = towers[enemySide].filter(t => t.hp > 0).reduce((closest, t) => {
+        const d = Math.abs(unit.y - t.y);
+        if (!closest || d < closest.d) return { tower: t, d };
+        return closest;
+      }, null);
+      if (target) target = target.tower;
+    }
+
+    if (!target) return;
+
+    const dist = Math.abs((target.y || target.y) - unit.y);
+
+    if (dist < 30) {
       unit.attackCooldown -= delta;
       if (unit.attackCooldown <= 0) {
-        target.currentHp -= unit.dmg;
+        if (target.hp !== undefined) {
+          // Tower
+          target.hp -= unit.dmg;
+          if (target.hp <= 0 && target.name === "King") {
+            alert(`${unit.owner} wins!`);
+            showScreen("menu");
+          }
+        } else {
+          // Unit
+          target.currentHp -= unit.dmg;
+        }
         unit.attackCooldown = 800;
       }
     } else {
-      unit.y -= unit.speed * delta;
+      // Move toward target
+      unit.y += unit.owner === "player" ? -unit.speed * delta : unit.speed * delta;
     }
   });
 
-  units = units.filter(u => u.currentHp > 0 && u.y > 0);
+  // Remove dead units
+  units = units.filter(u => u.currentHp > 0 && u.y > 0 && u.y < canvas.height);
 }
 
 // ================== DRAW UNITS ==================
@@ -186,6 +227,17 @@ function drawUnits() {
     ctx.fillText(u.emoji, u.x - 10, u.y);
     ctx.fillStyle = "purple";
     ctx.fillRect(u.x - 15, u.y + 5, 30 * (u.currentHp / u.hp), 4);
+  });
+}
+
+// ================== DRAW TOWERS ==================
+function drawTowers() {
+  ["player", "enemy"].forEach(side => {
+    towers[side].forEach(t => {
+      if (t.hp <= 0) return;
+      ctx.fillStyle = t.name === "King" ? "red" : "purple";
+      ctx.fillRect(t.x - 15, t.y + 10, 30 * (t.hp / (t.name === "King" ? 3096 : 2352)), 5);
+    });
   });
 }
 
@@ -204,7 +256,6 @@ function renderDeckBuilder() {
     div.className = "card";
     div.draggable = true;
     div.innerHTML = `${card.emoji}<br>${card.name}`;
-
     div.ondragstart = e => e.dataTransfer.setData("i", i);
     div.ondragover = e => e.preventDefault();
     div.ondrop = e => {
@@ -213,7 +264,6 @@ function renderDeckBuilder() {
       renderDeckBuilder();
       saveGame();
     };
-
     d.appendChild(div);
   });
 }
