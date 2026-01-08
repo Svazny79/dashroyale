@@ -5,13 +5,8 @@ body{
   color:white;
   text-align:center;
 }
-
 .hidden{display:none}
-
-.screen{
-  padding:20px;
-}
-
+.screen{padding:20px;}
 button{
   padding:14px 24px;
   font-size:18px;
@@ -21,27 +16,21 @@ button{
   color:white;
   cursor:pointer;
 }
-button:disabled{
-  opacity:.5;
-}
-
+button:disabled{opacity:.5}
 #arenaList{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
   gap:20px;
 }
-
 .arenaCard{
   background:#222;
   padding:10px;
   border-radius:12px;
 }
-
 canvas{
   background:black;
   border-radius:10px;
 }
-
 #battlefield{
   border:4px solid white;
 }
