@@ -1,214 +1,214 @@
+/* ================= DASH ROYALE UPGRADED ================= */
+
+/* ---------- CANVAS ---------- */
 const canvas = document.getElementById("battlefield");
 const ctx = canvas.getContext("2d");
+canvas.width=900; canvas.height=600;
 
-/* ================= CORE STATE ================= */
-let currentScreen = "menu";
-let currentArena = "Training Camp";
-let crowns = 20;
+/* ---------- STATE ---------- */
+let screen="menu";
+let crowns=50;
+let elixir=5, maxElixir=10, doubleElixir=false, gameTime=180;
+let currentArena="Training Camp";
+let draggingCard=null;
 
-/* ================= ARENAS ================= */
-const arenas = [
-  { name: "Training Camp", cost: 0, unlocked: true },
-  { name: "Barbarian Bowl", cost: 10, unlocked: false },
-  { name: "Forest Arena", cost: 20, unlocked: false },
-  { name: "Frozen Peak", cost: 30, unlocked: false },
-  { name: "Volcano Pit", cost: 40, unlocked: false }
+/* ---------- ARENAS ---------- */
+const arenas=[
+  {name:"Training Camp", cost:0, unlocked:true, bg:"#4CAF50", cards:[]},
+  {name:"Barbarian Bowl", cost:10, unlocked:false, bg:"#c2a26a", cards:[]},
+  {name:"Forest Arena", cost:25, unlocked:false, bg:"#2e7d32", cards:[]},
+  {name:"Frozen Peak", cost:50, unlocked:false, bg:"#cfefff", cards:[]},
+  {name:"Volcano Pit", cost:80, unlocked:false, bg:"#3b1d1d", cards:[]}
 ];
 
-/* ================= CARDS ================= */
-const cards = [
-  { id:1, name:"Knight", emoji:"🗡️", arena:"Training Camp", dmg:10 },
-  { id:2, name:"Archer", emoji:"🏹", arena:"Training Camp", dmg:8 },
-  { id:3, name:"Giant", emoji:"🗿", arena:"Training Camp", dmg:15 },
-  { id:4, name:"Wizard", emoji:"🪄", arena:"Training Camp", dmg:12 },
+/* ---------- CARDS ---------- */
+const allCards=[
+  {id:1,name:"Knight",emoji:"🗡️",hp:120,dmg:12,cost:3,arena:"Training Camp"},
+  {id:2,name:"Archer",emoji:"🏹",hp:80,dmg:9,cost:3,arena:"Training Camp"},
+  {id:3,name:"Giant",emoji:"🗿",hp:300,dmg:20,cost:5,arena:"Training Camp"},
+  {id:4,name:"Wizard",emoji:"🪄",hp:90,dmg:15,cost:4,arena:"Training Camp"},
 
-  { id:5, name:"Barbarian", emoji:"🪓", arena:"Barbarian Bowl", dmg:11 },
-  { id:6, name:"Baby Dragon", emoji:"🐉", arena:"Barbarian Bowl", dmg:13 }
+  {id:5,name:"Barbarian",emoji:"🪓",hp:130,dmg:14,cost:4,arena:"Barbarian Bowl"},
+  {id:6,name:"Dragon",emoji:"🐉",hp:160,dmg:18,cost:5,arena:"Barbarian Bowl"},
+
+  {id:7,name:"Elf",emoji:"🧝",hp:100,dmg:16,cost:4,arena:"Forest Arena"},
+  {id:8,name:"Ice Golem",emoji:"❄️",hp:220,dmg:10,cost:4,arena:"Frozen Peak"},
+
+  {id:9,name:"Lava Hound",emoji:"🌋",hp:260,dmg:22,cost:6,arena:"Volcano Pit"},
+  {id:10,name:"Fire Spirit",emoji:"🔥",hp:60,dmg:20,cost:2,arena:"Volcano Pit"}
 ];
 
-/* ================= GAME OBJECTS ================= */
-let unlockedCards = [];
-let hand = [];
-let units = [];
-let towers = [];
-let draggingCard = null;
+/* ---------- PLAYER ---------- */
+let deck=[], hand=[], units=[], bullets=[], towers=[];
 
-/* ================= SAVE ================= */
+/* ---------- SAVE/LOAD ---------- */
 function saveGame(){
-  localStorage.setItem("dashRoyaleSave", JSON.stringify({
-    crowns,
-    arenas
-  }));
+  localStorage.setItem("dashRoyaleSave",JSON.stringify({crowns, arenas, deck}));
 }
 function loadGame(){
-  const s = JSON.parse(localStorage.getItem("dashRoyaleSave"));
-  if(!s) return;
-  crowns = s.crowns;
-  s.arenas.forEach(a=>{
-    const ar = arenas.find(x=>x.name===a.name);
-    if(ar) ar.unlocked = a.unlocked;
+  const d=JSON.parse(localStorage.getItem("dashRoyaleSave"));
+  if(!d) return;
+  crowns=d.crowns;
+  deck=d.deck||[];
+  d.arenas.forEach(a=>{
+    const ar=arenas.find(x=>x.name===a.name);
+    if(ar) ar.unlocked=a.unlocked;
   });
 }
 
-/* ================= SCREENS ================= */
+/* ---------- SCREENS ---------- */
 function showScreen(id){
   document.querySelectorAll(".screen").forEach(s=>s.classList.add("hidden"));
   document.getElementById(id).classList.remove("hidden");
-  currentScreen = id;
-  if(id==="arenas") renderArenas();
-  if(id==="game") startGame();
+  screen=id;
 }
-document.getElementById("playBtn").onclick=()=>showScreen("arenas");
 
-/* ================= ARENAS UI ================= */
+/* ---------- ARENA SHOP ---------- */
 function renderArenas(){
-  const list = document.getElementById("arenaList");
-  list.innerHTML="";
-  arenas.forEach(ar=>{
-    const div=document.createElement("div");
-    div.className="arenaCard";
-    div.innerHTML=`
+  const wrap=document.getElementById("arenaList");
+  wrap.innerHTML="";
+  arenas.forEach(a=>{
+    const d=document.createElement("div");
+    d.className="arenaCard";
+    d.innerHTML=`
       <canvas width="120" height="70"></canvas>
-      <h3>${ar.name}</h3>
-      <p>${ar.unlocked?"Unlocked":ar.cost+" 👑"}</p>
-      <button>${ar.unlocked?"PLAY":"BUY"}</button>
+      <h3>${a.name}</h3>
+      ${a.unlocked?"<button>Play</button>":
+        `<button ${crowns<a.cost?"disabled":""}>Buy (${a.cost}👑)</button>`}
     `;
-    drawArenaPreview(div.querySelector("canvas"), ar.name);
-    div.querySelector("button").onclick=()=>{
-      if(ar.unlocked){
-        currentArena=ar.name;
-        showScreen("game");
-      } else if(crowns>=ar.cost){
-        crowns-=ar.cost;
-        ar.unlocked=true;
+    const c=d.querySelector("canvas").getContext("2d");
+    c.fillStyle=a.bg; c.fillRect(0,0,120,70);
+    c.fillStyle="#1e90ff"; c.fillRect(0,30,120,10);
+
+    d.querySelector("button").onclick=()=>{
+      if(a.unlocked){
+        startGame(a.name);
+      }else if(crowns>=a.cost){
+        crowns-=a.cost;
+        a.unlocked=true;
         saveGame();
         renderArenas();
       }
     };
-    list.appendChild(div);
+    wrap.appendChild(d);
   });
-}
-function drawArenaPreview(c,name){
-  const p=c.getContext("2d");
-  p.fillStyle=name==="Barbarian Bowl"?"#c2a26a":"#4CAF50";
-  p.fillRect(0,0,c.width,c.height);
-  p.fillStyle="#1e90ff";
-  p.fillRect(0,c.height/2-5,c.width,10);
 }
 
-/* ================= GAME START ================= */
-function startGame(){
-  units=[];
-  unlockedCards = cards.filter(c=>{
-    const ar = arenas.find(a=>a.name===c.arena);
-    return ar && ar.unlocked;
-  });
-  hand = unlockedCards.slice(0,4);
+/* ---------- GAME START ---------- */
+function startGame(arenaName){
+  currentArena=arenaName;
+  elixir=5; gameTime=180; doubleElixir=false;
+  units=[]; bullets=[];
   setupTowers();
+  buildHand();
+  showScreen("game");
 }
 
-/* ================= TOWERS ================= */
-function setupTowers(){
-  towers = [
-    // PLAYER
-    { x:200,y:canvas.height-120,hp:2352,max:2352,emoji:"🏰",side:"player",alive:true },
-    { x:canvas.width-200,y:canvas.height-120,hp:2352,max:2352,emoji:"🏰",side:"player",alive:true },
-    { x:canvas.width/2,y:canvas.height-180,hp:3096,max:3096,emoji:"👑",side:"player",alive:true },
+/* ---------- HAND ---------- */
+function buildHand(){
+  const pool=allCards.filter(c=>{
+    const a=arenas.find(x=>x.name===c.arena);
+    return a && a.unlocked;
+  });
+  hand=pool.sort(()=>0.5-Math.random()).slice(0,4);
+}
+function rotateHand(){
+  hand.shift();
+  const pool=allCards.filter(c=>{
+    const a=arenas.find(x=>x.name===c.arena);
+    return a && a.unlocked;
+  });
+  hand.push(pool[Math.floor(Math.random()*pool.length)]);
+}
 
-    // ENEMY
-    { x:200,y:120,hp:2352,max:2352,emoji:"🏰",side:"enemy",alive:true },
-    { x:canvas.width-200,y:120,hp:2352,max:2352,emoji:"🏰",side:"enemy",alive:true },
-    { x:canvas.width/2,y:180,hp:3096,max:3096,emoji:"👑",side:"enemy",alive:true }
+/* ---------- TOWERS ---------- */
+function setupTowers(){
+  towers=[
+    {x:200,y:520,hp:2352,max:2352,side:"player",emoji:"🏰"},
+    {x:700,y:520,hp:2352,max:2352,side:"player",emoji:"🏰"},
+    {x:450,y:480,hp:3096,max:3096,side:"player",emoji:"👑"},
+    {x:200,y:80,hp:2352,max:2352,side:"enemy",emoji:"🏰"},
+    {x:700,y:80,hp:2352,max:2352,side:"enemy",emoji:"🏰"},
+    {x:450,y:120,hp:3096,max:3096,side:"enemy",emoji:"👑"}
   ];
 }
 
-/* ================= INPUT ================= */
-canvas.addEventListener("mousedown",e=>{
-  if(e.offsetY>canvas.height-90){
-    draggingCard = hand[Math.floor(e.offsetX/120)];
+/* ---------- INPUT ---------- */
+canvas.onmousedown=e=>{
+  if(e.offsetY>500){
+    draggingCard=hand[Math.floor(e.offsetX/120)];
   }
-});
-canvas.addEventListener("mouseup",e=>{
-  if(draggingCard){
-    units.push({
-      emoji:draggingCard.emoji,
-      x:e.offsetX,
-      y:e.offsetY,
-      dmg:draggingCard.dmg,
-      side:"player",
-      hp:100
-    });
+};
+canvas.onmouseup=e=>{
+  if(draggingCard && elixir>=draggingCard.cost){
+    elixir-=draggingCard.cost;
+    units.push({...draggingCard,x:e.offsetX,y:e.offsetY,side:"player"});
     rotateHand();
-    draggingCard=null;
   }
-});
-let handIndex=0;
-function rotateHand(){
-  hand.shift();
-  hand.push(unlockedCards[handIndex++%unlockedCards.length]);
-}
+  draggingCard=null;
+};
 
-/* ================= COMBAT ================= */
-function towerAttack(){
-  towers.forEach(t=>{
-    if(!t.alive) return;
-    const enemies = units.filter(u=>u.side!==t.side);
-    if(!enemies.length) return;
-    const target = enemies.reduce((a,b)=>
-      Math.hypot(b.x-t.x,b.y-t.y)<Math.hypot(a.x-t.x,a.y-t.y)?b:a
-    );
-    target.hp -= 0.5;
+/* ---------- COMBAT ---------- */
+function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
+function closest(u){
+  const targets=[...units,...towers].filter(t=>t.side!==u.side && t.hp>0);
+  return targets.sort((a,b)=>dist(u,a)-dist(u,b))[0];
+}
+function updateCombat(){
+  units.forEach(u=>{
+    const t=closest(u);
+    if(!t) return;
+    if(dist(u,t)<30){
+      t.hp-=u.dmg*0.05;
+    }else{
+      u.y+=u.side==="player"?-0.4:0.4;
+    }
   });
+  units=units.filter(u=>u.hp>0);
+  towers=towers.filter(t=>t.hp>0);
 }
 
-/* ================= DRAW ================= */
+/* ---------- DRAW ---------- */
 function drawArena(){
-  ctx.fillStyle="#4CAF50";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+  const a=arenas.find(x=>x.name===currentArena);
+  ctx.fillStyle=a.bg;
+  ctx.fillRect(0,0,900,600);
   ctx.fillStyle="#1e90ff";
-  ctx.fillRect(0,canvas.height/2-20,canvas.width,40);
+  ctx.fillRect(0,280,900,40);
+  ctx.fillStyle="#8b5a2b";
+  ctx.fillRect(200,260,40,80);
+  ctx.fillRect(660,260,40,80);
 }
-function drawTowers(){
+function draw(){
+  drawArena();
+  units.forEach(u=>{
+    ctx.font="26px Arial";
+    ctx.fillText(u.emoji,u.x,u.y);
+  });
   towers.forEach(t=>{
-    if(!t.alive) return;
     ctx.font="36px Arial";
     ctx.fillText(t.emoji,t.x-18,t.y);
     ctx.fillStyle=t.side==="player"?"purple":"red";
     ctx.fillRect(t.x-30,t.y-40,60*(t.hp/t.max),6);
     ctx.fillStyle="white";
-    ctx.fillText(Math.floor(t.hp),t.x-20,t.y-50);
-    if(t.hp<=0){
-      t.alive=false;
-      if(t.emoji==="👑"){
-        crowns+=3;
-        alert("KING TOWER DOWN! YOU WIN!");
-        showScreen("menu");
-        saveGame();
-      }
-    }
+    ctx.font="12px Arial";
+    ctx.fillText(Math.floor(t.hp),t.x-20,t.y-48);
   });
+  ctx.fillStyle="purple";
+  ctx.fillRect(20,580,(elixir/maxElixir)*200,10);
 }
 
-/* ================= LOOP ================= */
-function update(){
-  if(currentScreen==="game"){
-    drawArena();
-    towerAttack();
-    drawTowers();
-
-    units=units.filter(u=>u.hp>0);
-    units.forEach(u=>{
-      ctx.font="30px Arial";
-      ctx.fillText(u.emoji,u.x,u.y);
-      u.y -= u.side==="player"?0.3:-0.3;
-    });
-
-    hand.forEach((c,i)=>{
-      ctx.fillText(c.emoji,20+i*120,canvas.height-40);
-    });
+/* ---------- LOOP ---------- */
+function loop(){
+  if(screen==="game"){
+    gameTime-=1/60;
+    if(gameTime<60) doubleElixir=true;
+    elixir=Math.min(maxElixir,elixir+(doubleElixir?0.03:0.015));
+    updateCombat();
+    draw();
   }
-  requestAnimationFrame(update);
+  requestAnimationFrame(loop);
 }
 
 loadGame();
-update();
+loop();
