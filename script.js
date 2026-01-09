@@ -1,10 +1,4 @@
-/* ================= DASH ROYALE – PHASE 1 ================= */
-
-/* ---------- CANVAS ---------- */
-const canvas = document.getElementById("battlefield");
-const ctx = canvas.getContext("2d");
-canvas.width = 900;
-canvas.height = 600;
+/* ========= DASH ROYALE – PHASE 2 ========= */
 
 /* ---------- SCREENS ---------- */
 function showScreen(id){
@@ -12,7 +6,7 @@ function showScreen(id){
   document.getElementById(id).classList.remove("hidden");
 }
 
-/* ---------- CARD DATA ---------- */
+/* ---------- DATA ---------- */
 const allCards = [
   {id:1,name:"Knight",emoji:"🗡️",cost:3},
   {id:2,name:"Archer",emoji:"🏹",cost:3},
@@ -26,91 +20,153 @@ const allCards = [
   {id:10,name:"Lava Hound",emoji:"🌋",cost:6}
 ];
 
-/* ---------- DECK ---------- */
-let deck = [];
+/* ---------- SAVE ---------- */
+let deck = JSON.parse(localStorage.getItem("deck")) || [];
+let crowns = Number(localStorage.getItem("crowns")) || 0;
+let levels = JSON.parse(localStorage.getItem("levels")) || {};
 
-/* ---------- SAVE / LOAD ---------- */
-function saveDeck(){
-  localStorage.setItem("dashRoyaleDeck", JSON.stringify(deck));
-}
-function loadDeck(){
-  const d = JSON.parse(localStorage.getItem("dashRoyaleDeck"));
-  if(d) deck = d;
-}
-loadDeck();
+allCards.forEach(c=>{
+  if(!levels[c.id]) levels[c.id]=1;
+});
 
-/* ---------- OPEN BUILDER ---------- */
+function saveAll(){
+  localStorage.setItem("deck",JSON.stringify(deck));
+  localStorage.setItem("crowns",crowns);
+  localStorage.setItem("levels",JSON.stringify(levels));
+}
+
+/* ---------- MENU ---------- */
+function startGame(){
+  if(deck.length===0) return alert("Build a deck first!");
+  showScreen("game");
+  renderBattle();
+}
+
 function openDeckBuilder(){
   renderDeckBuilder();
   showScreen("deckBuilder");
 }
 
-/* ---------- RENDER ---------- */
-function renderDeckBuilder(){
-  const deckDiv = document.getElementById("deckSlots");
-  const allDiv = document.getElementById("allCards");
+function openUpgrades(){
+  renderUpgrades();
+  showScreen("upgrades");
+}
 
+/* ---------- DECK BUILDER ---------- */
+function renderDeckBuilder(){
+  const deckDiv=document.getElementById("deckSlots");
+  const allDiv=document.getElementById("allCards");
   deckDiv.innerHTML="";
   allDiv.innerHTML="";
 
-  // DECK SLOTS
   deck.forEach(card=>{
-    const d=document.createElement("div");
-    d.className="card";
-    d.innerHTML=`
-      <div class="emoji">${card.emoji}</div>
-      <div class="name">${card.name}</div>
-      <div class="cost">${card.cost}💧</div>
-    `;
+    const d=cardBox(card);
     d.onclick=()=>{
-      deck = deck.filter(c=>c.id!==card.id);
-      saveDeck();
-      renderDeckBuilder();
+      deck=deck.filter(c=>c.id!==card.id);
+      saveAll(); renderDeckBuilder();
     };
     deckDiv.appendChild(d);
   });
 
-  // ALL CARDS
   allCards.forEach(card=>{
-    const inDeck = deck.some(c=>c.id===card.id);
-    const d=document.createElement("div");
-    d.className="card";
-    if(inDeck) d.classList.add("disabled");
-    d.innerHTML=`
-      <div class="emoji">${card.emoji}</div>
-      <div class="name">${card.name}</div>
-      <div class="cost">${card.cost}💧</div>
-    `;
+    const d=cardBox(card);
+    if(deck.some(c=>c.id===card.id)) d.classList.add("disabled");
     d.onclick=()=>{
-      if(deck.length>=8 || inDeck) return;
+      if(deck.length>=8) return;
+      if(deck.some(c=>c.id===card.id)) return;
       deck.push(card);
-      saveDeck();
-      renderDeckBuilder();
+      saveAll(); renderDeckBuilder();
     };
     allDiv.appendChild(d);
   });
 }
 
-/* ---------- GAME START (USES DECK) ---------- */
-function startGame(){
-  if(deck.length===0){
-    alert("Build a deck first!");
-    return;
-  }
-  showScreen("game");
-  drawBattle();
+/* ---------- UPGRADES ---------- */
+function upgradeCost(lvl){ return lvl*5; }
+
+function renderUpgrades(){
+  const u=document.getElementById("upgradeCards");
+  document.getElementById("crownCount").innerText=crowns;
+  u.innerHTML="";
+
+  allCards.forEach(card=>{
+    const lvl=levels[card.id];
+    const cost=upgradeCost(lvl);
+    const d=cardBox(card,true);
+
+    const info=document.createElement("div");
+    info.innerHTML=`
+      <div>Level ${lvl}${lvl>=10?" ⚡ EVO":""}</div>
+      <button ${crowns<cost?"disabled":""}>Upgrade (${cost} 👑)</button>
+    `;
+    info.querySelector("button").onclick=()=>{
+      if(crowns<cost) return;
+      crowns-=cost;
+      levels[card.id]++;
+      if(levels[card.id]===11) levels[card.id]="EVO";
+      saveAll();
+      renderUpgrades();
+    };
+
+    d.appendChild(info);
+    u.appendChild(d);
+  });
 }
 
-/* ---------- SIMPLE BATTLE DRAW ---------- */
-function drawBattle(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle="#4CAF50";
+/* ---------- ADMIN ---------- */
+function adminLogin(){
+  const p=prompt("Admin password");
+  if(p==="littlebrother6"){
+    const c=Number(prompt("Set crowns"));
+    if(!isNaN(c)){ crowns=c; saveAll(); alert("Crowns updated"); }
+  }
+}
+
+/* ---------- BATTLE ---------- */
+const canvas=document.getElementById("battlefield");
+const ctx=canvas.getContext("2d");
+canvas.width=900; canvas.height=600;
+
+function renderBattle(){
+  ctx.clearRect(0,0,900,600);
+  ctx.fillStyle="#3b82f6";
   ctx.fillRect(0,0,900,600);
 
-  // show hand (first 4 cards of deck)
+  // towers
+  ctx.font="50px Arial";
+  ctx.fillText("🏰",100,300);
+  ctx.fillText("🏰",800,300);
+
+  // hand (4 rotating)
   deck.slice(0,4).forEach((c,i)=>{
-    ctx.font="22px Arial";
-    ctx.fillText(c.emoji, 120*i+40, 560);
-    ctx.fillText(c.cost+"💧", 120*i+30, 585);
+    ctx.font="28px Arial";
+    ctx.fillText(c.emoji,200+i*120,560);
+    ctx.fillText("Lv "+levels[c.id],200+i*120,585);
   });
+}
+
+/* ---------- WIN ---------- */
+function winBattle(){
+  crowns+=3;
+  saveAll();
+  alert("You won! +3 👑");
+  showScreen("menu");
+}
+
+/* ---------- CARD UI ---------- */
+function cardBox(card,upgrade=false){
+  const lvl=levels[card.id];
+  const d=document.createElement("div");
+  d.className="card";
+  if(lvl>=3) d.classList.add("red");
+  if(lvl>=5) d.classList.add("purple");
+  if(lvl>=10) d.classList.add("evo");
+
+  d.innerHTML=`
+    <div class="emoji">${card.emoji}</div>
+    <div class="name">${card.name}</div>
+    <div class="cost">${card.cost}💧</div>
+    ${upgrade?"":`<div class="lvl">Lv ${lvl}</div>`}
+  `;
+  return d;
 }
